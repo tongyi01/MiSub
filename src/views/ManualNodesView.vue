@@ -36,38 +36,16 @@
     const batchGroupIds = ref([]); // Added
     const showGroupManagementModal = ref(false); // 分组管理模态框
 
-    const {
-        manualNodes,
-        manualNodesCurrentPage,
-        manualNodesTotalPages,
-        paginatedManualNodes,
-        searchTerm,
-        changeManualNodesPage,
-        addNode,
-        updateNode,
-        deleteNode,
-        deleteAllNodes,
-        addNodesFromBulk,
-        autoSortNodes,
-        deduplicateNodes,
-        buildDedupPlan,
-        applyDedupPlan,
-        reorderManualNodes,
-        manualNodeGroups,
-        renameGroup,
-        deleteGroup,
-        reorderGroups,
-        activeGroupFilter,
-        setGroupFilter,
-        batchUpdateGroup,
-        batchDeleteNodes,
-        manualNodesPerPage,
-        pingResults,
-        pingingNodes,
-        pingNodeId,
-        pingAllNodes,
-        sortNodesByLatency,
-    } = useManualNodes(markDirty);
+const {
+  manualNodes, manualNodesCurrentPage, manualNodesTotalPages, paginatedManualNodes, searchTerm,
+  changeManualNodesPage, addNode, updateNode, deleteNode, deleteAllNodes,
+  addNodesFromBulk, autoSortNodes, deduplicateNodes, buildDedupPlan, applyDedupPlan,
+  reorderManualNodes,
+  manualNodeGroups, renameGroup, deleteGroup, reorderGroups,
+  activeGroupFilter, setGroupFilter, batchUpdateGroup, batchSetNodesEnabled, batchDeleteNodes,
+  manualNodesPerPage,
+  pingResults, pingingNodes, pingNodeId, pingNodeIds, pingAllNodes
+} = useManualNodes(markDirty);
 
     const handleSearchTermUpdate = (val) => {
         searchTerm.value = val;
@@ -240,11 +218,29 @@ const handleAutoSortNodes = (mode) => {
             "
         />
 
-        <BatchGroupModal
-            v-model:show="showBatchGroupModal"
-            :groups="manualNodeGroups"
-            @confirm="handleBatchGroupConfirm"
-        />
+    <ManualNodePanel :manual-nodes="manualNodes" :paginated-manual-nodes="paginatedManualNodes"
+      :current-page="manualNodesCurrentPage" :total-pages="manualNodesTotalPages" :is-sorting="isSortingNodes"
+      :search-term="searchTerm" :view-mode="manualNodeViewMode" :groups="manualNodeGroups"
+      :active-group-filter="activeGroupFilter" :items-per-page="manualNodesPerPage"
+      @update:items-per-page="val => manualNodesPerPage = val"
+      @add="handleAddNode" @delete="handleDeleteNodeWithCleanup"
+      @edit="(id) => handleEditNode(manualNodes.find(n => n.id === id))" @change-page="changeManualNodesPage"
+      @update:search-term="handleSearchTermUpdate" @update:view-mode="setViewMode"
+      @toggle-sort="isSortingNodes = !isSortingNodes" @mark-dirty="markDirty" @auto-sort="handleAutoSortNodes"
+      @deduplicate="handleDeduplicateNodes" @import="showSubscriptionImportModal = true"
+      @delete-all="showDeleteNodesModal = true" @reorder="reorderManualNodes" @rename-group="renameGroup"
+      @set-group-filter="setGroupFilter"
+      @batch-update-group="(ids, group) => batchUpdateGroup(ids, group)"
+      @batch-delete-nodes="handleBatchDeleteRequest"
+      @batch-set-enabled="batchSetNodesEnabled"
+      @ping-selected="pingNodeIds"
+      @open-batch-group-modal="handleOpenBatchGroupModal"
+      @manage-groups="handleOpenGroupManagement"
+      :ping-results="pingResults"
+      :pinging-nodes="pingingNodes"
+      @ping="pingNodeId"
+      @ping-all="pingAllNodes"
+    />
 
         <GroupManagementModal
             v-model:show="showGroupManagementModal"

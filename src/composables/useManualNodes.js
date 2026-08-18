@@ -23,11 +23,98 @@ export function useManualNodes(markDirty) {
     const settingsStore = useSettingsStore();
     const { subscriptions: allSubscriptions } = storeToRefs(dataStore);
 
-    // Manual Nodes are items in subscriptions that are NOT http/https
-    // We filter from the shared store state
-    // [FIX] 添加更严格的验证,确保只识别有效的手工节点
-    const manualNodes = computed(() => {
-        return (allSubscriptions.value || []).filter(isManualNodeEntry);
+  // Manual Nodes are items in subscriptions that are NOT http/https
+  // We filter from the shared store state
+  // [FIX] 添加更严格的验证,确保只识别有效的手工节点
+  const manualNodes = computed(() => {
+    return (allSubscriptions.value || []).filter(isManualNodeEntry);
+  });
+
+  const manualNodesCurrentPage = ref(1);
+  const manualNodesPerPage = ref(parseInt(localStorage.getItem('manualNodesPPS')) || 24);
+  const searchTerm = ref('');
+
+  watch(manualNodesPerPage, (newVal) => {
+    localStorage.setItem('manualNodesPPS', newVal);
+    manualNodesCurrentPage.value = 1;
+  });
+
+  const activeGroupFilter = ref(null); // null = all, or group name string
+
+  const filteredManualNodes = computed(() => {
+    return filterManualNodes(manualNodes.value, searchTerm.value, activeGroupFilter.value);
+  });
+
+  const manualNodesTotalPages = computed(() => {
+    if (manualNodesPerPage.value === -1) return 1; // All
+    return Math.ceil(filteredManualNodes.value.length / manualNodesPerPage.value);
+  });
+
+  const paginatedManualNodes = computed(() => {
+    if (manualNodesPerPage.value === -1) return filteredManualNodes.value;
+    const start = (manualNodesCurrentPage.value - 1) * manualNodesPerPage.value;
+    const end = start + manualNodesPerPage.value;
+    return filteredManualNodes.value.slice(start, end);
+  });
+
+  const enabledManualNodes = computed(() => manualNodes.value.filter(n => n.enabled));
+
+  function changeManualNodesPage(page) {
+    let p = parseInt(page);
+    if (isNaN(p)) p = 1;
+    if (p < 1) p = 1;
+    if (p > manualNodesTotalPages.value) p = manualNodesTotalPages.value;
+    manualNodesCurrentPage.value = p;
+  }
+
+  function setGroupFilter(group) {
+    activeGroupFilter.value = group;
+    manualNodesCurrentPage.value = 1; // Reset to page 1
+  }
+
+  function batchUpdateGroup(nodeIds, groupName) {
+    if (!nodeIds || nodeIds.length === 0) return;
+    const normalizedGroupName = normalizeManualNodeGroupName(groupName);
+    const idsSet = new Set(nodeIds);
+    const updates = manualNodes.value
+      .filter(n => idsSet.has(n.id))
+      .map(n => {
+        // Only update if changed after normalization
+        if (normalizeManualNodeGroupName(n.group) === normalizedGroupName) return null;
+        return { id: n.id, updates: { ...n, group: normalizedGroupName } };
+      })
+      .filter(u => u);
+
+    if (updates.length > 0) {
+      updates.forEach(({ id, updates }) => {
+        dataStore.updateSubscription(id, updates);
+      });
+      markDirty();
+      showToast(t('manualNodes.movedToGroup', { count: updates.length, group: normalizedGroupName || t('manualNodes.defaultGroup') }), 'success');
+    }
+  }
+
+  function batchSetNodesEnabled(nodeIds, enabled) {
+    const idsSet = new Set(nodeIds || []);
+    let changedCount = 0;
+    const nextItems = (allSubscriptions.value || []).map(item => {
+      if (!idsSet.has(item.id) || item.enabled === enabled) return item;
+      changedCount += 1;
+      return { ...item, enabled };
+    });
+    if (changedCount > 0) {
+      dataStore.overwriteSubscriptions(nextItems);
+      markDirty();
+      showToast(t(enabled ? 'manualNodes.enabledCount' : 'manualNodes.disabledCount', { count: changedCount }), 'success');
+    }
+  }
+
+  function batchDeleteNodes(nodeIds) {
+    if (!nodeIds || nodeIds.length === 0) return;
+    // Confirmation moved to UI layer
+
+    nodeIds.forEach(id => {
+      dataStore.removeSubscription(id);
     });
 
     const manualNodesCurrentPage = ref(1);
@@ -697,9 +784,9 @@ export function useManualNodes(markDirty) {
       }
   }
 
-  // 批量并发测试所有开启的手动节点
-  async function pingAllNodes() {
-      const nodesToTest = enabledManualNodes.value.map(n => n.id);
+  async function pingNodeIds(nodeIds) {
+      const validIds = new Set(manualNodes.value.map(node => node.id));
+      const nodesToTest = Array.from(new Set(nodeIds || [])).filter(id => validIds.has(id));
       if (nodesToTest.length === 0) return;
       
       showToast(t('manualNodes.pingStarted', { count: nodesToTest.length }), 'info');
@@ -718,6 +805,11 @@ export function useManualNodes(markDirty) {
       
       await Promise.allSettled(workers);
       showToast(t('manualNodes.pingCompleted', { count: nodesToTest.length }), 'success');
+  }
+
+  // 批量并发测试所有开启的手动节点
+  async function pingAllNodes() {
+      return pingNodeIds(enabledManualNodes.value.map(n => n.id));
   }
 
   return {
@@ -746,11 +838,13 @@ export function useManualNodes(markDirty) {
     reorderGroups, // New: 调整分组顺序
     setGroupFilter, // New
     batchUpdateGroup, // New
+    batchSetNodesEnabled,
     batchDeleteNodes, // New
     manualNodesPerPage, // Added
     pingResults,
     pingingNodes,
     pingNodeId,
+    pingNodeIds,
     pingAllNodes
   };
 }
