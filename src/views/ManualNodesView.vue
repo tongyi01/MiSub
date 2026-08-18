@@ -75,9 +75,14 @@ const handleDeleteAllNodesWithCleanup = () => {
   showDeleteNodesModal.value = false;
 };
 
-const handleAutoSortNodes = () => {
-  autoSortNodes();
-  showToast(t('manualNodes.sortedByRegion'), 'success');
+const handleAutoSortNodes = (mode) => {
+  autoSortNodes(mode);
+  const messageKey = mode === 'group-order'
+    ? 'manualNodes.sortedByGroupOrder'
+    : mode === 'name'
+      ? 'manualNodes.sortedByName'
+      : 'manualNodes.sortedByRegion';
+  showToast(t(messageKey), 'success');
 };
 
 const handleDeduplicateNodes = () => {

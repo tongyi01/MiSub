@@ -7,6 +7,7 @@ import { fetchNodeCount, batchUpdateNodes } from '../lib/api.js';
 import { handleError } from '../utils/errorHandler.js';
 import { TIMING } from '../constants/timing.js';
 import { t } from '../i18n/index.js';
+import { sortCollection } from '../utils/collection-sorting.js';
 
 const isDev = import.meta.env.DEV;
 
@@ -413,6 +414,14 @@ export function useSubscriptions(markDirty) {
     markDirty();
   }
 
+  function autoSortSubscriptions(mode = 'name') {
+    const currentManualNodes = (allSubscriptions.value || []).filter(item => !item.url || !/^https?:\/\//.test(item.url));
+    const sortedSubscriptions = sortCollection(subscriptions.value, mode);
+    dataStore.overwriteSubscriptions([...currentManualNodes, ...sortedSubscriptions]);
+    subsCurrentPage.value = 1;
+    markDirty();
+  }
+
   return {
     subscriptions,
     filteredSubscriptions,
@@ -434,5 +443,6 @@ export function useSubscriptions(markDirty) {
     stopAutoUpdate,
     restartAutoUpdate,
     reorderSubscriptions,
+    autoSortSubscriptions,
   };
 }

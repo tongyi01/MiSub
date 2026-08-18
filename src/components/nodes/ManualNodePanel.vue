@@ -142,8 +142,8 @@ const handleSortEnd = () => {
     emit('changePage', 1);
   }
 };
-const handleAutoSort = () => {
-  emit('autoSort');
+const handleAutoSort = (mode) => {
+  emit('autoSort', mode);
 };
 const handleDeduplicate = () => {
   emit('deduplicate');

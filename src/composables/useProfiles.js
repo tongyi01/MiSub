@@ -4,6 +4,7 @@ import { useDataStore } from '../stores/useDataStore';
 import { useToastStore } from '../stores/toast';
 import { generateProfileId } from '../utils/id.js';
 import { t } from '../i18n/index.js';
+import { sortCollection } from '../utils/collection-sorting.js';
 
 export function useProfiles(markDirty) {
   const { showToast } = useToastStore();
@@ -129,6 +130,12 @@ export function useProfiles(markDirty) {
     profiles.value = [];
     markDirty();
     showDeleteProfilesModal.value = false;
+  };
+
+  const autoSortProfiles = (mode = 'name') => {
+    dataStore.overwriteProfiles(sortCollection(profiles.value, mode));
+    profilesCurrentPage.value = 1;
+    markDirty();
   };
 
   const copyProfileLink = (profileId) => {
@@ -261,6 +268,7 @@ export function useProfiles(markDirty) {
     handleSaveProfile,
     handleDeleteProfile,
     handleDeleteAllProfiles,
+    autoSortProfiles,
     copyProfileLink,
     copyClashLink,
     cleanupSubscriptions,

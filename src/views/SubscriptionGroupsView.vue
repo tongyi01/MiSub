@@ -27,7 +27,7 @@ const {
   subscriptions, filteredSubscriptions, searchQuery: subscriptionSearchQuery, subsCurrentPage, subsTotalPages, paginatedSubscriptions,
   changeSubsPage, addSubscription, updateSubscription, deleteSubscription, deleteAllSubscriptions,
   addSubscriptionsFromBulk, handleUpdateNodeCount, batchUpdateAllSubscriptions,
-  reorderSubscriptions
+  reorderSubscriptions, autoSortSubscriptions
 } = useSubscriptions(markDirty);
 
 const { addNodesFromBulk } = useManualNodes(markDirty);
@@ -124,6 +124,7 @@ const handleQRCode = (id) => {
       @delete-all="showDeleteSubsModal = true"
       @preview="handlePreviewSubscription"
       @reorder="reorderSubscriptions"
+      @auto-sort="autoSortSubscriptions"
       @import="openBulkImportModal"
       @qrcode="handleQRCode"
       @update-search="subscriptionSearchQuery = $event"

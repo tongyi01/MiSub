@@ -29,7 +29,7 @@ const props = defineProps({
   filteredCount: { type: Number, default: undefined },
 });
 
-const emit = defineEmits(['add', 'edit', 'delete', 'deleteAll', 'toggle', 'openCopy', 'preview', 'reorder', 'changePage', 'viewLogs', 'qrcode', 'toggle-sort', 'updateSearch']);
+const emit = defineEmits(['add', 'edit', 'delete', 'deleteAll', 'toggle', 'openCopy', 'preview', 'reorder', 'auto-sort', 'changePage', 'viewLogs', 'qrcode', 'toggle-sort', 'updateSearch']);
 
 const searchModel = computed({
   get: () => props.searchQuery,
@@ -98,6 +98,9 @@ const handleMoveDown = (profileId) => {
                 <button @click="handleToggleSort(); close()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
                   {{ isSorting ? t('actions.finishSort') : t('actions.manualSort') }}
                 </button>
+                <div class="px-4 pb-1 pt-2 text-xs font-medium text-gray-400 dark:text-gray-500">{{ t('actions.autoSort') }}</div>
+                <button @click="emit('auto-sort', 'name'); close()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t('actions.sortByName') }}</button>
+                <button @click="emit('auto-sort', 'enabled-first'); close()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t('actions.sortEnabledFirst') }}</button>
                 <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
                 <button @click="handleDeleteAll(); close()" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-500/10">{{ t('actions.clearAll') }}</button>
               </template>

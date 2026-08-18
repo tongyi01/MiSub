@@ -214,13 +214,14 @@ describe('api-handler storage helper usage', () => {
 
     getAllSubscriptions.mockResolvedValue([{ id: 'sub-legacy', name: 'Legacy', url: 'https://old.example.com' }]);
     getAllProfiles.mockResolvedValue([{ id: 'profile-legacy', name: 'Legacy Profile', subscriptions: [], manualNodes: [] }]);
-    get.mockResolvedValue({});
+    get.mockResolvedValue({ theme: 'dark' });
 
     const request = {
       async json() {
         return {
           misubs: [{ id: 'sub-new', name: 'Sub New', url: 'https://new.example.com' }],
-          profiles: [{ id: 'profile-new', name: 'Profile New', subscriptions: [], manualNodes: [] }]
+          profiles: [{ id: 'profile-new', name: 'Profile New', subscriptions: [], manualNodes: [] }],
+          manualNodeGroupOrder: ['B', 'A', 'B', '  ']
         };
       }
     };
@@ -248,6 +249,10 @@ describe('api-handler storage helper usage', () => {
     expect(deleteProfileById).toHaveBeenCalledWith('profile-legacy');
     expect(put).not.toHaveBeenCalledWith('misub_subscriptions_v1', expect.anything());
     expect(put).not.toHaveBeenCalledWith('misub_profiles_v1', expect.anything());
+    expect(put).toHaveBeenCalledWith('worker_settings_v1', {
+      theme: 'dark',
+      manualNodeGroupOrder: ['B', 'A']
+    });
     expect(infoSpy).toHaveBeenCalledWith('[API] Cleared 0 node caches after subscription update, preserved 0');
   });
 });
