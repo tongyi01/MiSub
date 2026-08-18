@@ -28,16 +28,13 @@
     import ManualNodeDedupModal from '../../modals/ManualNodeDedupModal.vue';
     import SkeletonLoader from '../../ui/SkeletonLoader.vue';
 
-    const SettingsModal = defineAsyncComponent(() => import('../../modals/SettingsModal.vue'));
-    const BulkImportModal = defineAsyncComponent(() => import('../../modals/BulkImportModal.vue'));
-    const ProfileModal = defineAsyncComponent(() => import('../../modals/ProfileModal.vue'));
-    const SubscriptionImportModal = defineAsyncComponent(
-        () => import('../../modals/SubscriptionImportModal.vue')
-    );
-    const LogModal = defineAsyncComponent(() => import('../../modals/LogModal.vue'));
-    const NodePreviewModal = defineAsyncComponent(
-        () => import('../../modals/NodePreview/NodePreviewModal.vue')
-    );
+const SettingsModal = defineAsyncComponent(() => import('../../modals/SettingsModal.vue'));
+const BulkImportModal = defineAsyncComponent(() => import('../../modals/BulkImportModal.vue'));
+const ProfileModal = defineAsyncComponent(() => import('../../modals/ProfileModal.vue'));
+const ProfileSyncModal = defineAsyncComponent(() => import('../../modals/ProfileSyncModal.vue'));
+const SubscriptionImportModal = defineAsyncComponent(() => import('../../modals/SubscriptionImportModal.vue'));
+const LogModal = defineAsyncComponent(() => import('../../modals/LogModal.vue'));
+const NodePreviewModal = defineAsyncComponent(() => import('../../modals/NodePreview/NodePreviewModal.vue'));
 
     const BatchGroupModal = defineAsyncComponent(() => import('../../modals/BatchGroupModal.vue'));
     const GroupManagementModal = defineAsyncComponent(
@@ -73,6 +70,7 @@ const markDirty = () => {
 const isSortingSubs = ref(false);
 const isSortingNodes = ref(false);
 const isSortingProfiles = ref(false);
+const showProfileSyncModal = ref(false);
 const manualNodeViewMode = ref('card');
 const showQRCodeModal = ref(false);
 const qrCodeUrl = ref('');
@@ -138,7 +136,7 @@ const {
   profiles, editingProfile, isNewProfile, showProfileModal, showDeleteProfilesModal,
   initializeProfiles, handleProfileToggle, handleAddProfile, handleEditProfile,
   handleSaveProfile, handleDeleteProfile, handleDeleteAllProfiles, copyProfileLink, copyClashLink,
-  cleanupSubscriptions, cleanupNodes, cleanupAllSubscriptions, cleanupAllNodes, autoSortProfiles,
+  cleanupSubscriptions, cleanupNodes, cleanupAllSubscriptions, cleanupAllNodes, autoSortProfiles, syncProfiles,
 } = useProfiles(markDirty);
 
 // --- UI State ---
@@ -709,7 +707,7 @@ const handleAutoSortNodes = (mode) => {
         <ProfilePanel :profiles="profiles" :compact="true" :is-sorting="isSortingProfiles" @add="handleAddProfile" @edit="handleEditProfile"
           @delete="handleDeleteProfile" @deleteAll="showDeleteProfilesModal = true" @toggle="handleProfileToggle"
           @open-copy="handleOpenCopy" @copyLink="copyProfileLink" @copyClashLink="copyClashLink" @preview="handlePreviewProfile" @viewLogs="handleViewLogs" @reorder="handleProfileReorder" 
-          @qrcode="(id) => handleQRCode(id, 'profile')" @toggle-sort="isSortingProfiles = !isSortingProfiles" @auto-sort="autoSortProfiles" />
+          @qrcode="(id) => handleQRCode(id, 'profile')" @toggle-sort="isSortingProfiles = !isSortingProfiles" @auto-sort="autoSortProfiles" @sync="showProfileSyncModal = true" />
       </div>
     </div>
     <div v-else class="w-full max-w-(--breakpoint-xl) mx-auto p-4 sm:p-6 lg:p-8">
@@ -760,44 +758,16 @@ const handleAutoSortNodes = (mode) => {
                     @import="showBulkImportModal = true"
                 />
 
-                <!-- Manual Node Panel -->
-                <ManualNodePanel
-                    :manual-nodes="manualNodes"
-                    :paginated-manual-nodes="paginatedManualNodes"
-                    :current-page="manualNodesCurrentPage"
-                    :total-pages="manualNodesTotalPages"
-                    :is-sorting="isSortingNodes"
-                    :search-term="searchTerm"
-                    :view-mode="manualNodeViewMode"
-                    :active-group-filter="activeGroupFilter"
-                    :ping-results="pingResults"
-                    :pinging-nodes="pingingNodes"
-                    :groups="manualNodeGroups"
-                    :compact-grid="true"
-                    @add="handleAddNode"
-                    @delete="handleDeleteNodeWithCleanup"
-                    @edit="(id) => handleEditNode(manualNodes.find((n) => n.id === id))"
-                    @change-page="changeManualNodesPage"
-                    @update:search-term="handleSearchTermUpdate"
-                    @update:view-mode="setViewMode"
-                    @toggle-sort="isSortingNodes = !isSortingNodes"
-                    @mark-dirty="markDirty"
-                    @auto-sort="handleAutoSortNodes"
-                    @deduplicate="handleDeduplicateNodes"
-                    @import="showSubscriptionImportModal = true"
-                    @delete-all="showDeleteNodesModal = true"
-                    @reorder="reorderManualNodes"
-                    @set-group-filter="setGroupFilter"
-                    @batch-update-group="(ids, group) => batchUpdateGroup(ids, group)"
-                    @batch-delete-nodes="handleBatchDeleteRequest"
-                    @rename-group="renameGroup"
-                    @delete-group="deleteGroup"
-                    @open-batch-group-modal="handleOpenBatchGroupModal"
-                    @manage-groups="handleOpenGroupManagement"
-                    @ping="pingNodeId"
-                    @ping-all="pingAllNodes"
-                />
-            </div>
+  <ProfileSyncModal v-if="showProfileSyncModal" v-model:show="showProfileSyncModal"
+    :profiles="profiles" :subscriptions="subscriptions" :manual-nodes="manualNodes"
+    :groups="manualNodeGroups" @apply="syncProfiles" />
+
+  <ManualNodeEditModal v-model:show="showNodeModal" :is-new="isNewNode" :editing-node="editingNode"
+    :groups="manualNodeGroups" @confirm="handleSaveNode" @input-url="handleNodeUrlInput" />
+  <ManualNodeDedupModal v-model:show="showDedupModal" :plan="dedupPlan"
+    @confirm="applyDedupPlan(dedupPlan); showDedupModal = false; dedupPlan = null" />
+  
+  <BatchGroupModal v-model:show="showBatchGroupModal" :groups="manualNodeGroups" @confirm="handleBatchGroupConfirm" />
 
             <!-- Right Column -->
             <div class="space-y-6 lg:space-y-7 xl:col-span-1">

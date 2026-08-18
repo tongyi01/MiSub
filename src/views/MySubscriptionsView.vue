@@ -23,15 +23,85 @@ const {
   profiles, editingProfile, isNewProfile, showProfileModal, showDeleteProfilesModal,
   handleProfileToggle, handleAddProfile, handleEditProfile,
   handleSaveProfile, handleDeleteProfile, handleDeleteAllProfiles,
-  autoSortProfiles,
+  autoSortProfiles, syncProfiles,
   filteredProfiles, searchQuery: profileSearchQuery, profilesCurrentPage, profilesTotalPages, paginatedProfiles, changeProfilesPage
 } = useProfiles(markDirty);
 
-    function applyFocusFromQuery() {
-        if (!resolveProfileFocus(route.query?.focus)) return;
-        nextTick(() => {
-            profilesSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
+// For ProfileModal need access to all subscriptions and nodes
+const { subscriptions } = storeToRefs(dataStore);
+const { manualNodes, manualNodeGroups } = useManualNodes(markDirty);
+const showProfileSyncModal = ref(false);
+
+const handleProfileReorder = (profileId, direction) => {
+  const fromIndex = profiles.value.findIndex(profile => profile.id === profileId || profile.customId === profileId);
+  if (fromIndex === -1) return;
+
+  const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+  if (toIndex < 0 || toIndex >= profiles.value.length) return;
+
+  const [item] = profiles.value.splice(fromIndex, 1);
+  profiles.value.splice(toIndex, 0, item);
+  markDirty();
+};
+
+const toggleProfileSorting = () => {
+  isProfileSorting.value = !isProfileSorting.value;
+};
+
+const NodePreviewModal = defineAsyncComponent(() => import('../components/modals/NodePreview/NodePreviewModal.vue'));
+const showNodePreviewModal = ref(false);
+const previewProfileId = ref(null);
+const previewProfileName = ref('');
+
+const handlePreviewProfile = (profileId) => {
+  const profile = profiles.value.find(p => p.id === profileId || p.customId === profileId);
+  if (profile) {
+    previewProfileId.value = profileId;
+    previewProfileName.value = profile.name;
+    showNodePreviewModal.value = true;
+  }
+};
+
+const ProfileModal = defineAsyncComponent(() => import('../components/modals/ProfileModal.vue'));
+const ProfileSyncModal = defineAsyncComponent(() => import('../components/modals/ProfileSyncModal.vue'));
+const LogModal = defineAsyncComponent(() => import('../components/modals/LogModal.vue'));
+const CopyLinkModal = defineAsyncComponent(() => import('../components/modals/CopyLinkModal.vue'));
+
+const showLogModal = ref(false);
+const logProfileName = ref('');
+
+const showCopyModal = ref(false);
+const showCopyModalProfile = ref(null);
+
+const handleOpenCopy = (profileId) => {
+  const profile = profiles.value.find(p => p.id === profileId || p.customId === profileId);
+  if (profile) {
+    showCopyModalProfile.value = profile;
+    showCopyModal.value = true;
+  }
+};
+
+const handleViewLogs = (profileId) => {
+  const profile = profiles.value.find(p => p.id === profileId || p.customId === profileId);
+  if (profile) {
+    logProfileName.value = profile.name;
+    showLogModal.value = true;
+  }
+};
+
+// QRCode
+const QRCodeModal = defineAsyncComponent(() => import('../components/modals/QRCodeModal.vue'));
+const showQRCodeModal = ref(false);
+const qrCodeUrl = ref('');
+const qrCodeTitle = ref('');
+const { settings } = storeToRefs(dataStore); // Check if settings is already imported or available from dataStore
+
+const handleQRCode = (profileId) => {
+  const profile = profiles.value.find(p => p.id === profileId || p.customId === profileId);
+  if (profile) {
+    if (!settings.value.profileToken) {
+      showToast(t('notices.noToken'), "error");
+      return;
     }
 
     onMounted(applyFocusFromQuery);
@@ -191,6 +261,7 @@ const {
       @deleteAll="showDeleteProfilesModal = true" @toggle="handleProfileToggle" @openCopy="handleOpenCopy"
       @preview="handlePreviewProfile" @reorder="handleProfileReorder" @toggle-sort="toggleProfileSorting"
       @auto-sort="autoSortProfiles"
+      @sync="showProfileSyncModal = true"
       @change-page="changeProfilesPage" @viewLogs="handleViewLogs" @qrcode="handleQRCode"
       @update-search="profileSearchQuery = $event" />
 
@@ -217,7 +288,18 @@ const {
             @update:show="showNodePreviewModal = $event"
         />
 
-        <QRCodeModal v-model:show="showQRCodeModal" :url="qrCodeUrl" :title="qrCodeTitle" />
+    <ProfileSyncModal v-if="showProfileSyncModal" v-model:show="showProfileSyncModal"
+      :profiles="profiles" :subscriptions="subscriptions.filter(item => item?.url && /^https?:\/\//.test(item.url))"
+      :manual-nodes="manualNodes" :groups="manualNodeGroups" @apply="syncProfiles" />
+
+    <Modal v-model:show="showDeleteProfilesModal" @confirm="handleDeleteAllProfiles">
+      <template #title>
+        <h3 class="text-lg font-bold text-red-500">{{ t('profiles.deleteAllConfirmTitle') }}</h3>
+      </template>
+      <template #body>
+        <p class="text-sm text-gray-400">{{ t('profiles.deleteAllConfirmBody') }}</p>
+      </template>
+    </Modal>
 
         <CopyLinkModal
             v-if="showCopyModal && showCopyModalProfile"
