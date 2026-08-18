@@ -5,6 +5,7 @@ import NodeActions from './ManualNodePanel/NodeActions.vue';
 import NodeTable from './ManualNodePanel/NodeTable.vue';
 import { useManualNodeSearchPagination } from '@/composables/manual-nodes/useManualNodeSearchPagination.js';
 import { normalizeManualNodeGroupName } from '@/composables/manual-nodes/groups.js';
+import { moveSelectedToBoundary } from '@/utils/manual-node-bulk-order.js';
 
 const props = defineProps({
   manualNodes: { type: Array, default: () => [] },
@@ -28,6 +29,9 @@ const emit = defineEmits([
   'rename-group', 'delete-group',
   'update:itemsPerPage', // Added
   'open-batch-group-modal', // Added
+  'batch-delete-nodes',
+  'batch-set-enabled',
+  'ping-selected',
   'ping',
   'ping-all',
   'manage-groups'
@@ -47,6 +51,7 @@ const {
   manualNodes: computed(() => props.manualNodes),
   paginatedManualNodes: computed(() => props.paginatedManualNodes || []),
   initialSearchTerm: computed(() => props.searchTerm || ''),
+  activeGroupFilter: computed(() => props.activeGroupFilter),
   onBasePageChange: (page) => emit('changePage', page),
   onSearchTermChange: (value) => emit('update:searchTerm', value)
 });
@@ -70,6 +75,10 @@ const isAllSelected = computed(() => {
 });
 
 const selectedCount = computed(() => selectedNodeIds.value.size);
+const isAllFilteredSelected = computed(() => {
+  if (sortableManualNodes.value.length === 0) return false;
+  return sortableManualNodes.value.every(node => selectedNodeIds.value.has(node.id));
+});
 
 const toggleSelectAll = () => {
     if (isAllSelected.value) {
@@ -79,6 +88,22 @@ const toggleSelectAll = () => {
         // Select all on current page
         paginatedNodes.value.forEach(node => selectedNodeIds.value.add(node.id));
     }
+};
+
+const toggleSelectAllFiltered = () => {
+  if (isAllFilteredSelected.value) {
+    sortableManualNodes.value.forEach(node => selectedNodeIds.value.delete(node.id));
+  } else {
+    sortableManualNodes.value.forEach(node => selectedNodeIds.value.add(node.id));
+  }
+};
+
+const invertCurrentPage = () => {
+  paginatedNodes.value.forEach(node => toggleNodeSelection(node.id));
+};
+
+const clearSelection = () => {
+  selectedNodeIds.value.clear();
 };
 
 const handleBatchGroup = () => {
@@ -97,6 +122,18 @@ const handleBatchDelete = () => {
     emit('batch-delete-nodes', Array.from(selectedNodeIds.value));
     selectedNodeIds.value.clear();
     isSelectionMode.value = false;
+};
+
+const handleBatchSetEnabled = (enabled) => {
+  emit('batch-set-enabled', Array.from(selectedNodeIds.value), enabled);
+};
+
+const handlePingSelected = () => {
+  emit('ping-selected', Array.from(selectedNodeIds.value));
+};
+
+const handleBatchReorder = (position) => {
+  emit('reorder', moveSelectedToBoundary(props.manualNodes, selectedNodeIds.value, position));
 };
 
 const sortableManualNodes = computed(() => {
@@ -184,10 +221,18 @@ const handleDeleteAll = () => {
     <BulkOperations
       :is-selection-mode="isSelectionMode"
       :is-all-selected="isAllSelected"
+      :is-all-filtered-selected="isAllFilteredSelected"
       :selected-count="selectedCount"
+      :filtered-count="sortableManualNodes.length"
       :groups="groups"
       @toggle-select-all="toggleSelectAll"
+      @toggle-select-all-filtered="toggleSelectAllFiltered"
+      @invert-current-page="invertCurrentPage"
+      @clear-selection="clearSelection"
       @batch-group="handleBatchGroup"
+      @batch-set-enabled="handleBatchSetEnabled"
+      @ping-selected="handlePingSelected"
+      @batch-reorder="handleBatchReorder"
       @batch-delete="handleBatchDelete"
       @exit="() => { selectedNodeIds.clear(); isSelectionMode = false; }"
     />
