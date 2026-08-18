@@ -126,4 +126,13 @@ describe('手动节点分组管理', () => {
     const afterGroups = manualNodes.manualNodeGroups.value;
     expect(afterGroups).toEqual(beforeGroups);
   });
+
+  it('批量启停只更新指定节点并保留现有顺序', () => {
+    manualNodes.batchSetNodesEnabled(['n1', 'n4'], false);
+
+    expect(dataStore.subscriptions.map(node => node.id)).toEqual(['n1', 'n2', 'n3', 'n4', 'n5', 'n6']);
+    expect(dataStore.subscriptions.find(node => node.id === 'n1').enabled).toBe(false);
+    expect(dataStore.subscriptions.find(node => node.id === 'n4').enabled).toBe(false);
+    expect(dataStore.subscriptions.find(node => node.id === 'n2').enabled).toBe(true);
+  });
 });

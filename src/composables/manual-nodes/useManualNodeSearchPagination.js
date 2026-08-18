@@ -1,5 +1,6 @@
 import { computed, ref, watch } from 'vue';
 import { MANUAL_NODE_COUNTRY_ALIAS_MAP } from '@/constants/manualNodeCountryAliases.js';
+import { normalizeManualNodeGroupName } from './groups.js';
 
 const SEARCH_NODES_PER_PAGE = 24;
 
@@ -8,6 +9,7 @@ export function useManualNodeSearchPagination(options) {
     manualNodes,
     paginatedManualNodes,
     initialSearchTerm,
+    activeGroupFilter,
     onBasePageChange,
     onSearchTermChange
   } = options;
@@ -30,13 +32,20 @@ export function useManualNodeSearchPagination(options) {
   });
 
   const filteredNodes = computed(() => {
+    const activeGroup = activeGroupFilter?.value;
+    const groupFilteredNodes = activeGroup
+      ? manualNodes.value.filter((node) => {
+          const normalizedActiveGroup = activeGroup === '默认' ? '' : normalizeManualNodeGroupName(activeGroup);
+          return normalizeManualNodeGroupName(node.group) === normalizedActiveGroup;
+        })
+      : manualNodes.value;
     if (!localSearchTerm.value) {
-      return manualNodes.value;
+      return groupFilteredNodes;
     }
 
     const searchQuery = localSearchTerm.value.toLowerCase().trim();
 
-    return manualNodes.value.filter((node) => {
+    return groupFilteredNodes.filter((node) => {
       if (!node.name) return false;
 
       const nodeName = node.name.toLowerCase();

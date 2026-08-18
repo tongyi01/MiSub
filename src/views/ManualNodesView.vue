@@ -39,9 +39,9 @@ const {
   addNodesFromBulk, autoSortNodes, deduplicateNodes, buildDedupPlan, applyDedupPlan,
   reorderManualNodes,
   manualNodeGroups, renameGroup, deleteGroup, reorderGroups,
-  activeGroupFilter, setGroupFilter, batchUpdateGroup, batchDeleteNodes,
+  activeGroupFilter, setGroupFilter, batchUpdateGroup, batchSetNodesEnabled, batchDeleteNodes,
   manualNodesPerPage,
-  pingResults, pingingNodes, pingNodeId, pingAllNodes
+  pingResults, pingingNodes, pingNodeId, pingNodeIds, pingAllNodes
 } = useManualNodes(markDirty);
 
 const handleSearchTermUpdate = (val) => {
@@ -168,6 +168,8 @@ const handleGroupReorder = (newOrder) => {
       @set-group-filter="setGroupFilter"
       @batch-update-group="(ids, group) => batchUpdateGroup(ids, group)"
       @batch-delete-nodes="handleBatchDeleteRequest"
+      @batch-set-enabled="batchSetNodesEnabled"
+      @ping-selected="pingNodeIds"
       @open-batch-group-modal="handleOpenBatchGroupModal"
       @manage-groups="handleOpenGroupManagement"
       :ping-results="pingResults"

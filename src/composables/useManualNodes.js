@@ -89,6 +89,21 @@ export function useManualNodes(markDirty) {
     }
   }
 
+  function batchSetNodesEnabled(nodeIds, enabled) {
+    const idsSet = new Set(nodeIds || []);
+    let changedCount = 0;
+    const nextItems = (allSubscriptions.value || []).map(item => {
+      if (!idsSet.has(item.id) || item.enabled === enabled) return item;
+      changedCount += 1;
+      return { ...item, enabled };
+    });
+    if (changedCount > 0) {
+      dataStore.overwriteSubscriptions(nextItems);
+      markDirty();
+      showToast(t(enabled ? 'manualNodes.enabledCount' : 'manualNodes.disabledCount', { count: changedCount }), 'success');
+    }
+  }
+
   function batchDeleteNodes(nodeIds) {
     if (!nodeIds || nodeIds.length === 0) return;
     // Confirmation moved to UI layer
@@ -351,9 +366,9 @@ export function useManualNodes(markDirty) {
       }
   }
 
-  // 批量并发测试所有开启的手动节点
-  async function pingAllNodes() {
-      const nodesToTest = enabledManualNodes.value.map(n => n.id);
+  async function pingNodeIds(nodeIds) {
+      const validIds = new Set(manualNodes.value.map(node => node.id));
+      const nodesToTest = Array.from(new Set(nodeIds || [])).filter(id => validIds.has(id));
       if (nodesToTest.length === 0) return;
       
       showToast(t('manualNodes.pingStarted', { count: nodesToTest.length }), 'info');
@@ -372,6 +387,11 @@ export function useManualNodes(markDirty) {
       
       await Promise.allSettled(workers);
       showToast(t('manualNodes.pingCompleted', { count: nodesToTest.length }), 'success');
+  }
+
+  // 批量并发测试所有开启的手动节点
+  async function pingAllNodes() {
+      return pingNodeIds(enabledManualNodes.value.map(n => n.id));
   }
 
   return {
@@ -400,11 +420,13 @@ export function useManualNodes(markDirty) {
     reorderGroups, // New: 调整分组顺序
     setGroupFilter, // New
     batchUpdateGroup, // New
+    batchSetNodesEnabled,
     batchDeleteNodes, // New
     manualNodesPerPage, // Added
     pingResults,
     pingingNodes,
     pingNodeId,
+    pingNodeIds,
     pingAllNodes
   };
 }
