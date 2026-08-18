@@ -5,6 +5,7 @@ import { useToastStore } from '../stores/toast';
 import { generateProfileId } from '../utils/id.js';
 import { t } from '../i18n/index.js';
 import { sortCollection } from '../utils/collection-sorting.js';
+import { applyProfileSync, normalizeProfileSyncSettings } from '../utils/profile-sync.js';
 
 export function useProfiles(markDirty) {
   const { showToast } = useToastStore();
@@ -73,7 +74,8 @@ export function useProfiles(markDirty) {
       transformConfig: '', 
       ruleLevel: '', 
       expiresAt: '',
-      operators: [] // [New] Initialize operator chain
+      operators: [], // [New] Initialize operator chain
+      syncSettings: normalizeProfileSyncSettings()
     };
     showProfileModal.value = true;
   };
@@ -136,6 +138,35 @@ export function useProfiles(markDirty) {
     dataStore.overwriteProfiles(sortCollection(profiles.value, mode));
     profilesCurrentPage.value = 1;
     markDirty();
+  };
+
+  const syncProfiles = ({ targetIds = [], mode = 'once', settings: syncSettings = {} }) => {
+    const targets = new Set(targetIds);
+    const allItems = dataStore.subscriptions || [];
+    const sourceSubscriptions = allItems.filter(item => item?.url && /^https?:\/\//.test(item.url));
+    const sourceManualNodes = allItems.filter(item => !item?.url || !/^https?:\/\//.test(item.url));
+    let changedCount = 0;
+
+    const nextProfiles = profiles.value.map((profile) => {
+      if (!targets.has(profile.id)) return profile;
+      const result = applyProfileSync(profile, {
+        subscriptions: sourceSubscriptions,
+        manualNodes: sourceManualNodes
+      }, syncSettings);
+      const nextProfile = result.profile;
+      if (mode === 'continuous') {
+        nextProfile.syncSettings = normalizeProfileSyncSettings({
+          ...syncSettings,
+          mode: 'continuous'
+        });
+      }
+      if (result.diff.changed || mode === 'continuous') changedCount += 1;
+      return nextProfile;
+    });
+
+    profiles.value = nextProfiles;
+    markDirty();
+    showToast(t('profileSync.applied', { count: changedCount }), 'success');
   };
 
   const copyProfileLink = (profileId) => {
@@ -269,6 +300,7 @@ export function useProfiles(markDirty) {
     handleDeleteProfile,
     handleDeleteAllProfiles,
     autoSortProfiles,
+    syncProfiles,
     copyProfileLink,
     copyClashLink,
     cleanupSubscriptions,

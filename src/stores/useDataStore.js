@@ -8,6 +8,7 @@ import { DEFAULT_SETTINGS } from '../constants/default-settings.js';
 import { TIMING } from '../constants/timing.js';
 import { api } from '../lib/http.js';
 import { t } from '../i18n/index.js';
+import { applyContinuousProfileSync, getProfileEntryId } from '../utils/profile-sync.js';
 
 const isDev = import.meta.env.DEV;
 
@@ -112,6 +113,8 @@ export const useDataStore = defineStore('data', () => {
         isLoading.value = true;
         saveState.value = 'saving';
         
+        // 持续跟随的订阅组在保存前再次与主列表对齐，覆盖所有编辑入口。
+        synchronizeContinuousProfiles();
         // 保存前执行数据自愈，确保发往后端的数据是干净的
         pruneInvalidReferences();
 
@@ -258,13 +261,28 @@ export const useDataStore = defineStore('data', () => {
     }
 
     // --- Proxy Actions (Mutators) ---
+
+    function synchronizeContinuousProfiles() {
+        const sourceSubscriptions = subscriptions.value.filter(item => item?.url && /^https?:\/\//.test(item.url));
+        const sourceManualNodes = subscriptions.value.filter(item => !item?.url || !/^https?:\/\//.test(item.url));
+        const result = applyContinuousProfileSync(profiles.value, {
+            subscriptions: sourceSubscriptions,
+            manualNodes: sourceManualNodes
+        });
+        if (result.changed) {
+            profiles.value = result.profiles;
+        }
+        return result.changed;
+    }
     function addSubscription(subscription) {
         subscriptions.value.unshift(subscription);
+        synchronizeContinuousProfiles();
         markDirty();
     }
 
     function overwriteSubscriptions(items) {
         subscriptions.value = items;
+        synchronizeContinuousProfiles();
     }
 
     function removeSubscription(id) {
@@ -278,6 +296,7 @@ export const useDataStore = defineStore('data', () => {
         const index = subscriptions.value.findIndex(s => s.id === id);
         if (index !== -1) {
             subscriptions.value[index] = { ...subscriptions.value[index], ...updates };
+            synchronizeContinuousProfiles();
             markDirty();
         }
     }
@@ -328,7 +347,7 @@ export const useDataStore = defineStore('data', () => {
         profiles.value.forEach(profile => {
             if (Array.isArray(profile.subscriptions) && profile.subscriptions.length > 0) {
                 const originalLength = profile.subscriptions.length;
-                profile.subscriptions = profile.subscriptions.filter(id => !idsToRemove.has(id));
+                profile.subscriptions = profile.subscriptions.filter(entry => !idsToRemove.has(getProfileEntryId(entry)));
                 if (profile.subscriptions.length !== originalLength) {
                     modified = true;
                 }
@@ -376,7 +395,8 @@ export const useDataStore = defineStore('data', () => {
             if (Array.isArray(profile.subscriptions) && profile.subscriptions.length > 0) {
                 const originalLength = profile.subscriptions.length;
                 const seenIds = new Set();
-                profile.subscriptions = profile.subscriptions.filter(id => {
+                profile.subscriptions = profile.subscriptions.filter(entry => {
+                    const id = getProfileEntryId(entry);
                     if (validIds.has(id) && !seenIds.has(id)) {
                         seenIds.add(id);
                         return true;
@@ -444,6 +464,7 @@ export const useDataStore = defineStore('data', () => {
         removeProfile,
         removeManualNodeFromProfiles,
         removeSubscriptionFromProfiles,
+        synchronizeContinuousProfiles,
         markDirty,
         clearDirty
     };

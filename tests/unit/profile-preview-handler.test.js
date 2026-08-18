@@ -74,4 +74,33 @@ describe('handleProfileMode preview transforms', () => {
     expect(result.nodes[0].name).toBe('Renamed Node');
     expect(result.nodes[0].url).toContain('#Renamed%20Node');
   });
+
+  it('resolves continuously followed node groups against the latest stored nodes', async () => {
+    createAdapter.mockReturnValue({
+      getProfileById: vi.fn().mockResolvedValue({
+        id: 'profile-follow',
+        enabled: true,
+        subscriptions: [],
+        manualNodes: [],
+        operators: [],
+        syncSettings: {
+          mode: 'continuous',
+          strategy: 'incremental',
+          subscriptions: { enabled: false, includeNew: false },
+          manualNodes: { enabled: true, includeNew: true, groups: ['A'] }
+        }
+      }),
+      getAllSubscriptions: vi.fn().mockResolvedValue([
+        { id: 'node-a', enabled: true, group: 'A', name: 'New A', url: 'trojan://password@example.com:443#New%20A' },
+        { id: 'node-b', enabled: true, group: 'B', name: 'New B', url: 'trojan://password@example.net:443#New%20B' }
+      ]),
+      get: vi.fn().mockResolvedValue({ defaultOperators: [] })
+    });
+
+    const { handleProfileMode } = await import('../../functions/modules/subscription/profile-handler.js');
+    const result = await handleProfileMode(new Request('https://example.com/api/subscription_nodes'), {}, 'profile-follow', 'MiSub-Test/1.0', false, false);
+
+    expect(result.success).toBe(true);
+    expect(result.nodes.map(node => node.name)).toEqual(['New A']);
+  });
 });

@@ -20,13 +20,14 @@ const {
   profiles, editingProfile, isNewProfile, showProfileModal, showDeleteProfilesModal,
   handleProfileToggle, handleAddProfile, handleEditProfile,
   handleSaveProfile, handleDeleteProfile, handleDeleteAllProfiles,
-  autoSortProfiles,
+  autoSortProfiles, syncProfiles,
   filteredProfiles, searchQuery: profileSearchQuery, profilesCurrentPage, profilesTotalPages, paginatedProfiles, changeProfilesPage
 } = useProfiles(markDirty);
 
 // For ProfileModal need access to all subscriptions and nodes
 const { subscriptions } = storeToRefs(dataStore);
-const { manualNodes } = useManualNodes(markDirty);
+const { manualNodes, manualNodeGroups } = useManualNodes(markDirty);
+const showProfileSyncModal = ref(false);
 
 const handleProfileReorder = (profileId, direction) => {
   const fromIndex = profiles.value.findIndex(profile => profile.id === profileId || profile.customId === profileId);
@@ -59,6 +60,7 @@ const handlePreviewProfile = (profileId) => {
 };
 
 const ProfileModal = defineAsyncComponent(() => import('../components/modals/ProfileModal.vue'));
+const ProfileSyncModal = defineAsyncComponent(() => import('../components/modals/ProfileSyncModal.vue'));
 const LogModal = defineAsyncComponent(() => import('../components/modals/LogModal.vue'));
 const CopyLinkModal = defineAsyncComponent(() => import('../components/modals/CopyLinkModal.vue'));
 
@@ -120,6 +122,7 @@ const handleQRCode = (profileId) => {
       @deleteAll="showDeleteProfilesModal = true" @toggle="handleProfileToggle" @openCopy="handleOpenCopy"
       @preview="handlePreviewProfile" @reorder="handleProfileReorder" @toggle-sort="toggleProfileSorting"
       @auto-sort="autoSortProfiles"
+      @sync="showProfileSyncModal = true"
       @change-page="changeProfilesPage" @viewLogs="handleViewLogs" @qrcode="handleQRCode"
       @update-search="profileSearchQuery = $event" />
 
@@ -128,6 +131,10 @@ const handleQRCode = (profileId) => {
     <ProfileModal v-if="showProfileModal" v-model:show="showProfileModal" :profile="editingProfile"
       :is-new="isNewProfile" :all-subscriptions="subscriptions" :all-manual-nodes="manualNodes"
       @save="handleSaveProfile" size="6xl" />
+
+    <ProfileSyncModal v-if="showProfileSyncModal" v-model:show="showProfileSyncModal"
+      :profiles="profiles" :subscriptions="subscriptions.filter(item => item?.url && /^https?:\/\//.test(item.url))"
+      :manual-nodes="manualNodes" :groups="manualNodeGroups" @apply="syncProfiles" />
 
     <Modal v-model:show="showDeleteProfilesModal" @confirm="handleDeleteAllProfiles">
       <template #title>

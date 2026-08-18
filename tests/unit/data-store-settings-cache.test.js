@@ -67,4 +67,36 @@ describe('Data store settings cache', () => {
         expect(settingsStore.config.enablePublicPage).toBe(true);
         expect(settingsStore.config.transformConfig).toBe('https://example.com/new.ini');
     });
+
+    it('updates continuously followed profiles when the master list changes', () => {
+        const dataStore = createStore();
+        dataStore.hydrateFromData({
+            misubs: [
+                { id: 'n1', name: 'Node 1', group: 'A', url: 'ss://n1' },
+                { id: 's1', name: 'Sub 1', url: 'https://example.com/1' }
+            ],
+            profiles: [{
+                id: 'p1',
+                subscriptions: ['s1'],
+                manualNodes: ['n1'],
+                syncSettings: {
+                    mode: 'continuous',
+                    strategy: 'incremental',
+                    subscriptions: { enabled: true, includeNew: true },
+                    manualNodes: { enabled: true, includeNew: true, groups: ['A'] }
+                }
+            }],
+            config: {}
+        });
+
+        dataStore.overwriteSubscriptions([
+            { id: 'n2', name: 'Node 2', group: 'A', url: 'ss://n2' },
+            { id: 'n1', name: 'Node 1', group: 'A', url: 'ss://n1' },
+            { id: 's2', name: 'Sub 2', url: 'https://example.com/2' },
+            { id: 's1', name: 'Sub 1', url: 'https://example.com/1' }
+        ]);
+
+        expect(dataStore.profiles[0].subscriptions).toEqual(['s2', 's1']);
+        expect(dataStore.profiles[0].manualNodes).toEqual(['n2', 'n1']);
+    });
 });
