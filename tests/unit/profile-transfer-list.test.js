@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import TransferList from '../../src/components/modals/ProfileModal/TransferList.vue';
 import { createI18n } from '../../src/i18n/index.js';
 
@@ -17,6 +17,7 @@ function mountTransfer(props = {}) {
       plugins: [createPinia(), createI18n({ initialLocale: 'zh-CN' })],
       stubs: {
         draggable: {
+          name: 'DraggableStub',
           props: ['modelValue'],
           emits: ['update:modelValue'],
           template: '<div><slot name="item" v-for="(element, index) in modelValue" :element="element" :index="index" /><slot name="footer" /></div>'
@@ -44,5 +45,37 @@ describe('profile transfer list', () => {
     await wrapper.get('button[title="移出已选"]').trigger('click');
 
     expect(wrapper.emitted('update:selectedIds')?.at(-1)?.[0]).toEqual([]);
+  });
+
+  it('keeps included items visible and marks them as included in the source list', () => {
+    const wrapper = mountTransfer({ selectedIds: ['s1'], showSelectedInSource: true });
+
+    expect(wrapper.text()).toContain('Source 1');
+    expect(wrapper.text()).toContain('已加入');
+    expect(wrapper.findAll('input[type="checkbox"]')[1].attributes('disabled')).toBeDefined();
+  });
+
+  it('reorders only the visible target group while preserving hidden items', async () => {
+    const wrapper = mountTransfer({
+      selectedIds: ['s1', 's2'],
+      targetFilteredIds: ['s1', 's2']
+    });
+    const draggable = wrapper.findComponent({ name: 'DraggableStub' });
+    const visible = draggable.props('modelValue');
+    await draggable.vm.$emit('update:modelValue', [...visible].reverse());
+
+    expect(wrapper.emitted('update:selectedIds')?.at(-1)?.[0]).toEqual(['s2', 's1']);
+  });
+
+  it('clears all included items only after confirmation', async () => {
+    const confirm = vi.fn(() => true);
+    Object.defineProperty(window, 'confirm', { value: confirm, configurable: true });
+    const wrapper = mountTransfer({ selectedIds: ['s1', 's2'] });
+    const clearButton = wrapper.findAll('button').find(button => button.text() === '清空已加入');
+    await clearButton.trigger('click');
+
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(wrapper.emitted('update:selectedIds')?.at(-1)?.[0]).toEqual([]);
+    delete window.confirm;
   });
 });
