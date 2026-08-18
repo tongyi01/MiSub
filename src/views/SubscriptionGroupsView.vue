@@ -31,23 +31,12 @@
     const isSortingSubs = ref(false);
     const showDeleteSubsModal = ref(false);
 
-    const {
-        subscriptions,
-        filteredSubscriptions,
-        searchQuery: subscriptionSearchQuery,
-        subsCurrentPage,
-        subsTotalPages,
-        paginatedSubscriptions,
-        changeSubsPage,
-        addSubscription,
-        updateSubscription,
-        deleteSubscription,
-        deleteAllSubscriptions,
-        addSubscriptionsFromBulk,
-        handleUpdateNodeCount,
-        batchUpdateAllSubscriptions,
-        reorderSubscriptions,
-    } = useSubscriptions(markDirty);
+const {
+  subscriptions, filteredSubscriptions, searchQuery: subscriptionSearchQuery, subsCurrentPage, subsTotalPages, paginatedSubscriptions,
+  changeSubsPage, addSubscription, updateSubscription, deleteSubscription, deleteAllSubscriptions,
+  addSubscriptionsFromBulk, handleUpdateNodeCount, batchUpdateAllSubscriptions,
+  reorderSubscriptions, autoSortSubscriptions
+} = useSubscriptions(markDirty);
 
     const { addNodesFromBulk } = useManualNodes(markDirty);
 
@@ -291,21 +280,33 @@
             @confirm="handleSaveSubscription"
         />
 
-        <Modal
-            v-model:show="showDeleteSubsModal"
-            @confirm="handleDeleteAllSubscriptionsWithCleanup"
-        >
-            <template #title
-                ><h3 class="text-lg font-bold text-red-500">
-                    {{ t('subscriptions.deleteAllConfirmTitle') }}
-                </h3></template
-            >
-            <template #body
-                ><p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ t('subscriptions.deleteAllConfirmBody') }}
-                </p></template
-            >
-        </Modal>
+    <SubscriptionPanel
+      :subscriptions="subscriptions"
+      :paginated-subscriptions="paginatedSubscriptions"
+      :search-query="subscriptionSearchQuery"
+      :filtered-count="filteredSubscriptions.length"
+      :current-page="subsCurrentPage"
+      :total-pages="subsTotalPages"
+      :is-sorting="isSortingSubs"
+      searchable
+      @add="handleAddSubscription"
+      @delete="handleDeleteSubscriptionWithCleanup"
+      @change-page="changeSubsPage"
+      @update-node-count="handleUpdateNodeCount"
+      @refresh-all="batchUpdateAllSubscriptions"
+      @edit="(id) => handleEditSubscription(subscriptions.find(s => s.id === id))"
+      @toggle-sort="isSortingSubs = !isSortingSubs"
+      @mark-dirty="markDirty"
+      @delete-all="showDeleteSubsModal = true"
+      @preview="handlePreviewSubscription"
+      @reorder="reorderSubscriptions"
+      @auto-sort="autoSortSubscriptions"
+      @import="openBulkImportModal"
+      @qrcode="handleQRCode"
+      @update-search="subscriptionSearchQuery = $event"
+    >
+        <!-- Slot removed as user requested button move to dropdown -->
+    </SubscriptionPanel>
 
         <BulkImportModal
             v-if="showBulkImportModal"

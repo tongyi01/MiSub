@@ -459,4 +459,298 @@ export function useManualNodes(markDirty) {
         pingNodeId,
         pingAllNodes,
     };
+    if (!normalizedNode.name) {
+      normalizedNode.name = extractNodeName(normalizedNode.url);
+    }
+    // Add to shared store
+    dataStore.addSubscription(normalizedNode);
+    manualNodesCurrentPage.value = 1;
+    markDirty();
+  }
+
+  function updateNode(updatedNode) {
+    const normalizedNode = {
+      ...updatedNode,
+      group: normalizeManualNodeGroupName(updatedNode.group)
+    };
+    // Update in shared store
+    dataStore.updateSubscription(normalizedNode.id, normalizedNode);
+    markDirty();
+  }
+
+  function deleteNode(nodeId) {
+    dataStore.removeSubscription(nodeId);
+    // 清理组合订阅中对该节点的引用
+    dataStore.removeManualNodeFromProfiles(nodeId);
+    if (paginatedManualNodes.value.length === 0 && manualNodesCurrentPage.value > 1) {
+      manualNodesCurrentPage.value--;
+    }
+    markDirty();
+  }
+
+  function deleteAllNodes() {
+    // Only remove proper manual nodes (not subscriptions)
+    const idsToRemove = manualNodes.value.map(n => n.id);
+
+    // 如果没有节点，提示并返回
+    if (idsToRemove.length === 0) {
+      showToast(t('manualNodes.noNodesToDelete'), 'info');
+      return;
+    }
+
+    idsToRemove.forEach(id => dataStore.removeSubscription(id));
+    // 清理组合订阅中对这些节点的引用
+    dataStore.removeManualNodeFromProfiles(idsToRemove);
+
+    manualNodesCurrentPage.value = 1;
+    markDirty();
+    showToast(t('manualNodes.clearedCount', { count: idsToRemove.length }), 'success');
+  }
+
+  function addNodesFromBulk(nodes, groupName = '') {
+    const normalizedGroupName = normalizeManualNodeGroupName(groupName);
+    // Reverse insert so they appear in correct order when unshifted
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const node = { ...nodes[i] };
+      node.group = normalizeManualNodeGroupName(normalizedGroupName || node.group);
+      dataStore.addSubscription(node);
+    }
+    markDirty();
+  }
+
+  const buildDedupPlan = () => buildDedupPlanCore(manualNodes.value);
+
+  function applyDedupPlan(plan) {
+    if (!plan || !plan.removeNodes || plan.removeNodes.length === 0) {
+      showToast(t('manualNodes.noDuplicates'), 'info');
+      return;
+    }
+
+    plan.removeNodes.forEach(node => dataStore.removeSubscription(node.id));
+    showToast(t('manualNodes.removedDuplicates', { count: plan.removeNodes.length }), 'success');
+    markDirty();
+    manualNodesCurrentPage.value = 1;
+  }
+
+  function deduplicateNodes() {
+    const plan = buildDedupPlan();
+    applyDedupPlan(plan);
+  }
+
+  function autoSortNodes(mode = 'region') {
+    // Sort logic requires replacing the list.
+    // Since manual nodes are part of a larger list (subscriptions), we need to extract them, sort them, 
+    // and then potentially re-insert them or just update their order relative to themselves?
+    // The store's 'subscriptions' array is mixed.
+    // If we want to sort ONLY manual nodes but keep subscriptions in place... 
+    // It's complex because we don't track indices separately easily.
+    // Approach: Extract all Manual Nodes, Sort them, Extract all Subscriptions (keep order),
+    // Then Combine: [Subscriptions..., SortedManualNodes...]
+    // This effectively moves all manual nodes to the bottom. This is acceptable/expected behavior.
+
+    const mergedList = buildAutoSortedSubscriptions(
+      allSubscriptions.value || [],
+      manualNodes.value,
+      {
+        mode,
+        groupOrder: manualNodeGroups.value
+      }
+    );
+
+    // Update store with new order: Manual Nodes first, then Subscriptions
+    dataStore.overwriteSubscriptions(mergedList);
+
+    manualNodesCurrentPage.value = 1;
+    markDirty();
+  }
+
+  watch(searchTerm, (newValue, oldValue) => {
+    if (newValue !== oldValue) {
+      manualNodesCurrentPage.value = 1;
+    }
+  });
+
+  function reorderManualNodes(newOrder) {
+    const currentManualNodes = manualNodes.value;
+    const reorderedVisibleNodes = [...(newOrder || [])];
+    const newOrderIds = new Set(reorderedVisibleNodes.map(node => node.id));
+    const orderedManualNodes = newOrderIds.size > 0 && newOrderIds.size < currentManualNodes.length
+      ? currentManualNodes.map((node) => {
+          if (!newOrderIds.has(node.id)) return node;
+          return reorderedVisibleNodes.shift();
+        })
+      : reorderedVisibleNodes;
+
+    // 1. Get all Subscriptions (to preserve them)
+    const currentSubscriptions = (allSubscriptions.value || []).filter(item => item.url && /^https?:\/\//.test(item.url));
+
+    // 2. Combine Existing Subscriptions + New Ordered Manual Nodes
+    // Logic: Manual Nodes at top, Subscriptions at bottom
+    const mergedList = [...orderedManualNodes, ...currentSubscriptions];
+
+    // 3. Update Store
+    dataStore.overwriteSubscriptions(mergedList);
+
+    // 4. Mark Dirty
+    markDirty();
+  }
+
+  const manualNodeGroups = computed(() => {
+    const customOrder = settingsStore.config.manualNodeGroupOrder || [];
+    return collectManualNodeGroups(manualNodes.value, customOrder);
+  });
+
+  const groupedManualNodes = computed(() => {
+    return buildGroupedManualNodes(filteredManualNodes.value, manualNodeGroups.value);
+  });
+
+  function renameGroup(oldName, newName) {
+    const normalizedOldName = normalizeManualNodeGroupName(oldName);
+    const normalizedNewName = normalizeManualNodeGroupName(newName);
+    if (!normalizedOldName || !normalizedNewName || normalizedOldName === normalizedNewName) return;
+
+    const nodesInGroup = manualNodes.value.filter(n => normalizeManualNodeGroupName(n.group) === normalizedOldName);
+    nodesInGroup.forEach(node => {
+      dataStore.updateSubscription(node.id, { ...node, group: normalizedNewName });
+    });
+    
+    // 同步更新自定义分组顺序
+    const customOrder = settingsStore.config.manualNodeGroupOrder || [];
+    const index = customOrder.indexOf(normalizedOldName);
+    if (index !== -1) {
+      const newOrder = [...customOrder];
+      newOrder[index] = normalizedNewName;
+      settingsStore.updateConfig({ manualNodeGroupOrder: newOrder });
+    }
+    
+    markDirty();
+  }
+
+  function deleteGroup(groupName) {
+    const normalizedGroupName = normalizeManualNodeGroupName(groupName);
+    if (!normalizedGroupName) return;
+    // Ungroup nodes (move to default)
+    const nodesInGroup = manualNodes.value.filter(n => normalizeManualNodeGroupName(n.group) === normalizedGroupName);
+    nodesInGroup.forEach(node => {
+      // Creating a copy logic is safe here as updateSubscription handles it
+      const { group, ...rest } = node;
+      dataStore.updateSubscription(node.id, { ...rest, group: '' }); // Set to empty string or remove property
+    });
+    
+    // 从自定义分组顺序中移除
+    const customOrder = settingsStore.config.manualNodeGroupOrder || [];
+    const newOrder = customOrder.filter(g => g !== normalizedGroupName);
+    if (newOrder.length !== customOrder.length) {
+      settingsStore.updateConfig({ manualNodeGroupOrder: newOrder });
+    }
+    
+    markDirty();
+  }
+
+  function reorderGroups(newOrder) {
+    const normalizedOrder = Array.from(new Set(
+      (newOrder || []).map(normalizeManualNodeGroupName).filter(Boolean)
+    ));
+
+    // 保留设置中的顺序供当前会话使用，同时立即重排真实节点数组。
+    // 节点数组由主保存接口写入 sortIndex，因此重新加载后顺序仍然有效。
+    settingsStore.updateConfig({ manualNodeGroupOrder: normalizedOrder });
+    const mergedList = buildAutoSortedSubscriptions(
+      allSubscriptions.value || [],
+      manualNodes.value,
+      {
+        mode: 'group-order',
+        groupOrder: normalizedOrder
+      }
+    );
+    dataStore.overwriteSubscriptions(mergedList);
+    manualNodesCurrentPage.value = 1;
+    markDirty();
+  }
+
+  // --- 连通性测试 (Ping) ---
+  const pingResults = ref({}); // { [nodeId]: { status: 'ok'|'error'|'timeout', latency: 120 } }
+  const pingingNodes = ref(new Set());
+
+  async function pingNodeId(nodeId) {
+      if (pingingNodes.value.has(nodeId)) return;
+      const node = manualNodes.value.find(n => n.id === nodeId);
+      if (!node) return;
+  
+      const { host, port } = extractHostAndPort(node.url);
+      if (!host || !port) {
+          pingResults.value[nodeId] = { status: 'error', latency: -1, message: t('manualNodes.parseAddressFailed') };
+          return;
+      }
+  
+      pingingNodes.value.add(nodeId);
+      pingResults.value = { ...pingResults.value, [nodeId]: { status: 'loading', latency: 0 } };
+  
+      try {
+          // 由于 fetch ping 主要看 tcp 连通性，给个 3000ms 兜底即可
+          const result = await pingNode(host, port, 3000);
+          pingResults.value = { ...pingResults.value, [nodeId]: result };
+      } catch(e) {
+          pingResults.value = { ...pingResults.value, [nodeId]: { status: 'error', latency: -1 } };
+      } finally {
+          pingingNodes.value.delete(nodeId);
+      }
+  }
+
+  // 批量并发测试所有开启的手动节点
+  async function pingAllNodes() {
+      const nodesToTest = enabledManualNodes.value.map(n => n.id);
+      if (nodesToTest.length === 0) return;
+      
+      showToast(t('manualNodes.pingStarted', { count: nodesToTest.length }), 'info');
+      
+      // 控制并发数 (比如最大 10 并发)
+      const CONCURRENCY = 10;
+      let currentIndex = 0;
+      
+      const workers = Array(Math.min(CONCURRENCY, nodesToTest.length)).fill(null).map(async () => {
+          while (currentIndex < nodesToTest.length) {
+              const idx = currentIndex++;
+              const nodeId = nodesToTest[idx];
+              await pingNodeId(nodeId);
+          }
+      });
+      
+      await Promise.allSettled(workers);
+      showToast(t('manualNodes.pingCompleted', { count: nodesToTest.length }), 'success');
+  }
+
+  return {
+    manualNodes, // Returns computed filtered list
+    manualNodeGroups,
+    groupedManualNodes,
+    manualNodesCurrentPage,
+    manualNodesTotalPages,
+    paginatedManualNodes,
+    enabledManualNodesCount: computed(() => enabledManualNodes.value.length),
+    searchTerm,
+    activeGroupFilter, // New
+    changeManualNodesPage,
+    addNode,
+    updateNode,
+    deleteNode,
+    deleteAllNodes,
+    addNodesFromBulk,
+    autoSortNodes,
+    deduplicateNodes,
+    buildDedupPlan,
+    applyDedupPlan,
+    reorderManualNodes, // Added
+    renameGroup,
+    deleteGroup,
+    reorderGroups, // New: 调整分组顺序
+    setGroupFilter, // New
+    batchUpdateGroup, // New
+    batchDeleteNodes, // New
+    manualNodesPerPage, // Added
+    pingResults,
+    pingingNodes,
+    pingNodeId,
+    pingAllNodes
+  };
 }

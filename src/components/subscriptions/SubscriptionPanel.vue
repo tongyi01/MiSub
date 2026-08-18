@@ -35,32 +35,7 @@
         statusFilterLabel: { type: String, default: '' },
     });
 
-    const groupNameInput = ref('');
-    const selectedAirportGroup = ref('');
-    const editingSubscriptionIds = ref([]);
-    const showAirportIdentityEditor = ref(false);
-    const emit = defineEmits([
-        'add',
-        'delete',
-        'changePage',
-        'updateNodeCount',
-        'edit',
-        'toggleSort',
-        'markDirty',
-        'preview',
-        'deleteAll',
-        'refreshAll',
-        'reorder',
-        'import',
-        'qrcode',
-        'updateSearch',
-        'applyDetectedName',
-        'rename-group',
-        'reset-group',
-        'assign-airport-group',
-        'split-airport-group',
-        'clearStatusFilter',
-    ]);
+const emit = defineEmits(['add', 'delete', 'changePage', 'updateNodeCount', 'edit', 'toggleSort', 'markDirty', 'preview', 'deleteAll', 'refreshAll', 'reorder', 'autoSort', 'import', 'qrcode', 'updateSearch']);
 
     const searchModel = computed({
         get: () => props.searchQuery,
@@ -477,172 +452,23 @@
                 </button>
             </div>
         </div>
-        <div v-if="subscriptions.length > 0 && isSorting">
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <draggable
-                    tag="div"
-                    class="contents"
-                    v-model="draggableSubscriptions"
-                    item-key="id"
-                    animation="300"
-                    @end="handleSortEnd"
-                >
-                    <template #item="{ element: subscription }">
-                        <div class="cursor-move">
-                            <Card
-                                :misub="subscription"
-                                @delete="handleDelete(subscription.id)"
-                                @change="handleSortEnd"
-                                @update="handleUpdate(subscription.id)"
-                                @edit="handleEdit(subscription.id)"
-                                @preview="handlePreview(subscription.id)"
-                                @qrcode="handleQRCode(subscription.id)"
-                                @applyDetectedName="
-                                    (name) => handleApplyDetectedName(subscription, name)
-                                "
-                            />
-                        </div>
-                    </template>
-                </draggable>
-            </div>
-        </div>
-        <div v-else-if="paginatedSubscriptions.length > 0" class="space-y-4">
-            <!-- 按站点分组：同站点的多个订阅源折叠为一组 -->
-            <template v-if="isGrouped">
-                <template v-for="group in visibleCollapsibleGroups" :key="group.key">
-                    <div
-                        class="rounded-xl border border-gray-100/80 bg-white/70 shadow-sm dark:border-white/10 dark:bg-gray-900/50"
-                    >
-                        <div class="flex w-full items-center justify-between gap-3 px-4 py-3">
-                            <button
-                                type="button"
-                                :aria-expanded="String(!isGroupCollapsed(group.key))"
-                                class="flex min-w-0 flex-1 items-center gap-2 text-left"
-                                @click="toggleGroup(group.key)"
-                            >
-                                <svg
-                                    class="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400 transition-transform"
-                                    :class="isGroupCollapsed(group.key) ? '-rotate-90' : ''"
-                                    viewBox="0 0 20 20"
-                                    fill="currentColor"
-                                    aria-hidden="true"
-                                >
-                                    <path
-                                        fill-rule="evenodd"
-                                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                                        clip-rule="evenodd"
-                                    />
-                                </svg>
-                                <span
-                                    class="truncate font-semibold text-gray-800 dark:text-gray-100"
-                                    >{{ groupDisplayName(group) }}</span
-                                >
-                                <span
-                                    class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600 dark:bg-white/10 dark:text-gray-300"
-                                    >{{ group.items.length }}</span
-                                >
-                            </button>
-                            <div class="flex shrink-0 items-center gap-2">
-                                <button
-                                    v-if="groupDetectedName(group)"
-                                    type="button"
-                                    class="rounded-md border border-primary-500/30 px-2 py-1 text-[11px] font-medium text-primary-500 transition-colors hover:bg-primary-500/10 dark:text-primary-400"
-                                    :title="
-                                        t('subscriptions.renameGroupHint', {
-                                            name: groupDetectedName(group),
-                                        })
-                                    "
-                                    @click.stop="handleConfirmDetectedName(group)"
-                                >
-                                    {{ t('subscriptions.renameGroup') }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="rounded-md border border-gray-300/60 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-500/10 dark:border-white/15 dark:text-gray-300"
-                                    :title="t('subscriptions.assignAirportGroup')"
-                                    @click.stop="
-                                        openAirportIdentityEditor(
-                                            group.items.map((item) => item.id)
-                                        )
-                                    "
-                                >
-                                    {{ t('subscriptions.assignAirportGroup') }}
-                                </button>
-                                <button
-                                    v-if="group.items.length > 1"
-                                    type="button"
-                                    class="rounded-md border border-gray-300/60 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-500/10 dark:border-white/15 dark:text-gray-300"
-                                    :title="t('subscriptions.splitAirportGroup')"
-                                    @click.stop="handleSplitAirportGroup(group)"
-                                >
-                                    {{ t('subscriptions.splitAirportGroup') }}
-                                </button>
-                                <button
-                                    v-if="group.items.some((item) => item.airportIdentity?.groupId)"
-                                    type="button"
-                                    class="rounded-md border border-gray-300/60 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-500/10 dark:border-white/15 dark:text-gray-300"
-                                    :title="t('subscriptions.automaticAirportIdentity')"
-                                    @click.stop="handleResetGroup(group)"
-                                >
-                                    {{ t('subscriptions.automaticAirportIdentity') }}
-                                </button>
-                                <span class="text-xs text-gray-500 dark:text-gray-400">{{
-                                    isGroupCollapsed(group.key)
-                                        ? t('subscriptions.expand')
-                                        : t('subscriptions.collapse')
-                                }}</span>
-                            </div>
-                        </div>
-                        <div
-                            v-show="!isGroupCollapsed(group.key)"
-                            class="grid grid-cols-1 gap-4 border-t border-gray-100/80 p-4 md:grid-cols-2 dark:border-white/10"
-                        >
-                            <div
-                                v-for="(subscription, index) in group.items"
-                                :key="subscription.id"
-                                class="list-item-animation"
-                                :style="{ '--delay-index': index }"
-                            >
-                                <Card
-                                    :misub="subscription"
-                                    @delete="handleDelete(subscription.id)"
-                                    @change="handleSortEnd"
-                                    @update="handleUpdate(subscription.id)"
-                                    @edit="handleEdit(subscription.id)"
-                                    @preview="handlePreview(subscription.id)"
-                                    @qrcode="handleQRCode(subscription.id)"
-                                    @applyDetectedName="
-                                        (name) => handleApplyDetectedName(subscription, name)
-                                    "
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </template>
-                <div
-                    v-if="ungroupedSubscriptions.length > 0"
-                    class="grid grid-cols-1 gap-4 md:grid-cols-2"
-                >
-                    <div
-                        v-for="(subscription, index) in ungroupedSubscriptions"
-                        :key="subscription.id"
-                        class="list-item-animation"
-                        :style="{ '--delay-index': index }"
-                    >
-                        <Card
-                            :misub="subscription"
-                            @delete="handleDelete(subscription.id)"
-                            @change="handleSortEnd"
-                            @update="handleUpdate(subscription.id)"
-                            @edit="handleEdit(subscription.id)"
-                            @preview="handlePreview(subscription.id)"
-                            @qrcode="handleQRCode(subscription.id)"
-                            @applyDetectedName="
-                                (name) => handleApplyDetectedName(subscription, name)
-                            "
-                        />
-                    </div>
-                </div>
+        <div class="flex flex-wrap items-center gap-2 sm:w-auto justify-end sm:justify-start">
+          <slot name="actions-prepend"></slot>
+          <button @click="handleImport" class="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10">{{ t('actions.bulkImport') }}</button>
+          <button @click="handleAdd" class="shrink-0 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700">{{ t('actions.add') }}</button>
+          <MoreActionsMenu menu-width-class="w-36">
+            <template #menu="{ close }">
+              <button @click="handleRefreshAll(); close()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                {{ t('actions.refreshAll') }}
+              </button>
+              <button @click="handleToggleSort(); close()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                {{ isSorting ? t('actions.finishSort') : t('actions.manualSort') }}
+              </button>
+              <div class="px-4 pb-1 pt-2 text-xs font-medium text-gray-400 dark:text-gray-500">{{ t('actions.autoSort') }}</div>
+              <button @click="emit('autoSort', 'name'); close()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t('actions.sortByName') }}</button>
+              <button @click="emit('autoSort', 'enabled-first'); close()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t('actions.sortEnabledFirst') }}</button>
+              <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+              <button @click="handleDeleteAll(); close()" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-500/10">{{ t('actions.clearAll') }}</button>
             </template>
             <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div

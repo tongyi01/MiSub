@@ -139,6 +139,9 @@ export const useDataStore = defineStore('data', () => {
                     delete normalizedProfile.clashRuleLevel;
                     return normalizedProfile;
                 }),
+                manualNodeGroupOrder: Array.isArray(settingsStore.config.manualNodeGroupOrder)
+                    ? settingsStore.config.manualNodeGroupOrder
+                    : []
             };
 
             const result = await api.post('/api/misubs', payload);

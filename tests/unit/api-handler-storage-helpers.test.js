@@ -158,31 +158,16 @@ describe('api-handler storage helper usage', () => {
     it('handleMisubsSave preserves protective caches only for subscriptions with node cache enabled', async () => {
         const { handleMisubsSave } = await import('../../functions/modules/api-handler.js');
 
-        getAllSubscriptions.mockResolvedValue([]);
-        getAllProfiles.mockResolvedValue([]);
-        get.mockResolvedValue({});
-        put.mockResolvedValue(true);
+    getAllSubscriptions.mockResolvedValue([{ id: 'sub-legacy', name: 'Legacy', url: 'https://old.example.com' }]);
+    getAllProfiles.mockResolvedValue([{ id: 'profile-legacy', name: 'Legacy Profile', subscriptions: [], manualNodes: [] }]);
+    get.mockResolvedValue({ theme: 'dark' });
 
-        const request = {
-            async json() {
-                return {
-                    misubs: [
-                        {
-                            id: 'sub-enabled',
-                            name: 'Enabled',
-                            url: 'https://a.example.com',
-                            enableNodeCache: true,
-                        },
-                        {
-                            id: 'sub-disabled',
-                            name: 'Disabled',
-                            url: 'https://b.example.com',
-                            enableNodeCache: false,
-                        },
-                    ],
-                    profiles: [],
-                };
-            },
+    const request = {
+      async json() {
+        return {
+          misubs: [{ id: 'sub-new', name: 'Sub New', url: 'https://new.example.com' }],
+          profiles: [{ id: 'profile-new', name: 'Profile New', subscriptions: [], manualNodes: [] }],
+          manualNodeGroupOrder: ['B', 'A', 'B', '  ']
         };
 
         const response = await handleMisubsSave(request, { MISUB_DB: {} });
@@ -297,4 +282,13 @@ describe('api-handler storage helper usage', () => {
             '[API] Cleared 0 node caches after subscription update, preserved 0'
         );
     });
+    expect(deleteProfileById).toHaveBeenCalledWith('profile-legacy');
+    expect(put).not.toHaveBeenCalledWith('misub_subscriptions_v1', expect.anything());
+    expect(put).not.toHaveBeenCalledWith('misub_profiles_v1', expect.anything());
+    expect(put).toHaveBeenCalledWith('worker_settings_v1', {
+      theme: 'dark',
+      manualNodeGroupOrder: ['B', 'A']
+    });
+    expect(infoSpy).toHaveBeenCalledWith('[API] Cleared 0 node caches after subscription update, preserved 0');
+  });
 });

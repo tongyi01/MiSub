@@ -66,12 +66,39 @@ describe('subscription list search', () => {
             { id: 'p2', name: '游戏订阅', description: '低延迟线路', customId: 'gaming' },
         ];
 
-        const { filteredProfiles, searchQuery } = useProfiles(vi.fn());
+    searchQuery.value = '电视';
+    expect(filteredProfiles.value.map(item => item.id)).toEqual(['p1']);
+  });
 
-        searchQuery.value = 'gaming';
-        expect(filteredProfiles.value.map((item) => item.id)).toEqual(['p2']);
+  it('auto sorts airport subscriptions without losing manual nodes', () => {
+    const dataStore = useDataStore();
+    dataStore.subscriptions = [
+      { id: 's2', name: 'Zulu', url: 'https://z.example/sub', enabled: false },
+      { id: 'n1', name: 'Manual', url: 'ss://example', enabled: true },
+      { id: 's1', name: 'Alpha', url: 'https://a.example/sub', enabled: true }
+    ];
 
-        searchQuery.value = '电视';
-        expect(filteredProfiles.value.map((item) => item.id)).toEqual(['p1']);
-    });
+    const markDirty = vi.fn();
+    const { autoSortSubscriptions } = useSubscriptions(markDirty);
+    autoSortSubscriptions('name');
+
+    expect(dataStore.subscriptions.map(item => item.id)).toEqual(['n1', 's1', 's2']);
+    expect(markDirty).toHaveBeenCalledTimes(1);
+  });
+
+  it('auto sorts subscription profiles and marks them dirty', () => {
+    const dataStore = useDataStore();
+    dataStore.profiles = [
+      { id: 'p1', name: 'Disabled', enabled: false },
+      { id: 'p2', name: 'Enabled 1', enabled: true },
+      { id: 'p3', name: 'Enabled 2', enabled: true }
+    ];
+
+    const markDirty = vi.fn();
+    const { autoSortProfiles } = useProfiles(markDirty);
+    autoSortProfiles('enabled-first');
+
+    expect(dataStore.profiles.map(item => item.id)).toEqual(['p2', 'p3', 'p1']);
+    expect(markDirty).toHaveBeenCalledTimes(1);
+  });
 });

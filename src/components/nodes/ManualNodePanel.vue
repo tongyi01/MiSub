@@ -146,33 +146,33 @@
     const handleToggleSort = () => {
         emit('toggleSort');
 
-        // 使用 nextTick 等待状态更新完成后重置分页
-        nextTick(() => {
-            // 如果已经退出排序模式且没有搜索，重置到第一页
-            if (!props.isSorting && !props.searchTerm) {
-                emit('changePage', 1);
-            }
-        });
-    };
-    const handleSortEnd = () => {
-        emit('markDirty');
-        // 手动排序完成后重置到第一页
-        if (!props.searchTerm) {
-            emit('changePage', 1);
-        }
-    };
-    const handleAutoSort = () => {
-        emit('autoSort');
-    };
-    const handleDeduplicate = () => {
-        emit('deduplicate');
-    };
-    const handleImport = () => {
-        emit('import');
-    };
-    const handleDeleteAll = () => {
-        emit('deleteAll');
-    };
+  // 使用 nextTick 等待状态更新完成后重置分页
+  nextTick(() => {
+    // 如果已经退出排序模式且没有搜索，重置到第一页
+    if (!props.isSorting && !props.searchTerm) {
+      emit('changePage', 1);
+    }
+  });
+};
+const handleSortEnd = () => {
+  emit('markDirty');
+  // 手动排序完成后重置到第一页
+  if (!props.searchTerm) {
+    emit('changePage', 1);
+  }
+};
+const handleAutoSort = (mode) => {
+  emit('autoSort', mode);
+};
+const handleDeduplicate = () => {
+  emit('deduplicate');
+};
+const handleImport = () => {
+  emit('import');
+};
+const handleDeleteAll = () => {
+  emit('deleteAll');
+};
 </script>
 
 <template>

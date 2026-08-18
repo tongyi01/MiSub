@@ -19,10 +19,13 @@
     const { showToast } = useToastStore();
     const isProfileSorting = ref(false);
 
-    // --- Dashboard deep-link (?focus=profiles) ---
-    // The health card "创建组合订阅" links here with `?focus=profiles`. We use it
-    // to open the "add profile" flow directly instead of dropping the query.
-    const profilesSectionRef = ref(null);
+const {
+  profiles, editingProfile, isNewProfile, showProfileModal, showDeleteProfilesModal,
+  handleProfileToggle, handleAddProfile, handleEditProfile,
+  handleSaveProfile, handleDeleteProfile, handleDeleteAllProfiles,
+  autoSortProfiles,
+  filteredProfiles, searchQuery: profileSearchQuery, profilesCurrentPage, profilesTotalPages, paginatedProfiles, changeProfilesPage
+} = useProfiles(markDirty);
 
     function applyFocusFromQuery() {
         if (!resolveProfileFocus(route.query?.focus)) return;
@@ -181,16 +184,15 @@
             :filter-profile-name="logProfileName"
         />
 
-        <ProfileModal
-            v-if="showProfileModal"
-            v-model:show="showProfileModal"
-            :profile="editingProfile"
-            :is-new="isNewProfile"
-            :all-subscriptions="subscriptions"
-            :all-manual-nodes="manualNodes"
-            @save="handleSaveProfile"
-            size="6xl"
-        />
+    <ProfilePanel :profiles="profiles" :paginated-profiles="paginatedProfiles" :current-page="profilesCurrentPage"
+      :search-query="profileSearchQuery" :filtered-count="filteredProfiles.length"
+      searchable
+      :total-pages="profilesTotalPages" :is-sorting="isProfileSorting" @add="handleAddProfile" @edit="handleEditProfile" @delete="handleDeleteProfile"
+      @deleteAll="showDeleteProfilesModal = true" @toggle="handleProfileToggle" @openCopy="handleOpenCopy"
+      @preview="handlePreviewProfile" @reorder="handleProfileReorder" @toggle-sort="toggleProfileSorting"
+      @auto-sort="autoSortProfiles"
+      @change-page="changeProfilesPage" @viewLogs="handleViewLogs" @qrcode="handleQRCode"
+      @update-search="profileSearchQuery = $event" />
 
         <Modal v-model:show="showDeleteProfilesModal" @confirm="handleDeleteAllProfiles">
             <template #title>
