@@ -20,6 +20,7 @@ import { shouldApplyExternalTemplateForTarget } from './template-compatibility.j
 import { renderClashFromIniTemplate, renderLoonFromIniTemplate, renderQuanxFromIniTemplate, renderSingboxFromIniTemplate, renderSurgeFromIniTemplate } from './template-pipeline.js';
 import { getBuiltinTemplate } from './builtin-template-registry.js';
 import { assertPublicNetworkUrl } from '../security-utils.js';
+import { applyProfileSync } from '../../../src/utils/profile-sync.js';
 
 function maskSensitiveLogValue(value) {
     const text = String(value ?? '');
@@ -503,8 +504,15 @@ export async function handleMisubRequest(context) {
             return new Response('Invalid Profile Token', { status: 403 });
         }
         currentProfile = allProfiles.find(p => (p.customId && p.customId === profileIdentifier) || p.id === profileIdentifier);
-        const profile = currentProfile;
+        let profile = currentProfile;
         if (profile && profile.enabled) {
+            if (profile.syncSettings?.mode === 'continuous') {
+                profile = applyProfileSync(profile, {
+                    subscriptions: allMisubs.filter(item => item?.url && /^https?:\/\//.test(item.url)),
+                    manualNodes: allMisubs.filter(item => !item?.url || !/^https?:\/\//.test(item.url))
+                }, profile.syncSettings).profile;
+                currentProfile = profile;
+            }
             // Check if the profile has an expiration date and if it's expired
             if (profile.expiresAt) {
                 const expiryDate = new Date(profile.expiresAt);

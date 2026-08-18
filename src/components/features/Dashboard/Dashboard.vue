@@ -30,6 +30,7 @@ import SkeletonLoader from '../../ui/SkeletonLoader.vue';
 const SettingsModal = defineAsyncComponent(() => import('../../modals/SettingsModal.vue'));
 const BulkImportModal = defineAsyncComponent(() => import('../../modals/BulkImportModal.vue'));
 const ProfileModal = defineAsyncComponent(() => import('../../modals/ProfileModal.vue'));
+const ProfileSyncModal = defineAsyncComponent(() => import('../../modals/ProfileSyncModal.vue'));
 const SubscriptionImportModal = defineAsyncComponent(() => import('../../modals/SubscriptionImportModal.vue'));
 const LogModal = defineAsyncComponent(() => import('../../modals/LogModal.vue'));
 const NodePreviewModal = defineAsyncComponent(() => import('../../modals/NodePreview/NodePreviewModal.vue'));
@@ -66,6 +67,7 @@ const markDirty = () => {
 const isSortingSubs = ref(false);
 const isSortingNodes = ref(false);
 const isSortingProfiles = ref(false);
+const showProfileSyncModal = ref(false);
 const manualNodeViewMode = ref('card');
 const showQRCodeModal = ref(false);
 const qrCodeUrl = ref('');
@@ -131,7 +133,7 @@ const {
   profiles, editingProfile, isNewProfile, showProfileModal, showDeleteProfilesModal,
   initializeProfiles, handleProfileToggle, handleAddProfile, handleEditProfile,
   handleSaveProfile, handleDeleteProfile, handleDeleteAllProfiles, copyProfileLink, copyClashLink,
-  cleanupSubscriptions, cleanupNodes, cleanupAllSubscriptions, cleanupAllNodes, autoSortProfiles,
+  cleanupSubscriptions, cleanupNodes, cleanupAllSubscriptions, cleanupAllNodes, autoSortProfiles, syncProfiles,
 } = useProfiles(markDirty);
 
 // --- UI State ---
@@ -465,7 +467,7 @@ import SavePrompt from '../../ui/SavePrompt.vue';
         <ProfilePanel :profiles="profiles" :compact="true" :is-sorting="isSortingProfiles" @add="handleAddProfile" @edit="handleEditProfile"
           @delete="handleDeleteProfile" @deleteAll="showDeleteProfilesModal = true" @toggle="handleProfileToggle"
           @open-copy="handleOpenCopy" @copyLink="copyProfileLink" @copyClashLink="copyClashLink" @preview="handlePreviewProfile" @viewLogs="handleViewLogs" @reorder="handleProfileReorder" 
-          @qrcode="(id) => handleQRCode(id, 'profile')" @toggle-sort="isSortingProfiles = !isSortingProfiles" @auto-sort="autoSortProfiles" />
+          @qrcode="(id) => handleQRCode(id, 'profile')" @toggle-sort="isSortingProfiles = !isSortingProfiles" @auto-sort="autoSortProfiles" @sync="showProfileSyncModal = true" />
       </div>
     </div>
   </div>
@@ -498,6 +500,10 @@ import SavePrompt from '../../ui/SavePrompt.vue';
 
   <ProfileModal v-if="showProfileModal" v-model:show="showProfileModal" :profile="editingProfile" :is-new="isNewProfile"
     :all-subscriptions="subscriptions" :all-manual-nodes="manualNodes" @save="handleSaveProfile" size="6xl" />
+
+  <ProfileSyncModal v-if="showProfileSyncModal" v-model:show="showProfileSyncModal"
+    :profiles="profiles" :subscriptions="subscriptions" :manual-nodes="manualNodes"
+    :groups="manualNodeGroups" @apply="syncProfiles" />
 
   <ManualNodeEditModal v-model:show="showNodeModal" :is-new="isNewNode" :editing-node="editingNode"
     :groups="manualNodeGroups" @confirm="handleSaveNode" @input-url="handleNodeUrlInput" />

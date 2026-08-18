@@ -7,6 +7,7 @@ import { runOperatorChain } from '../../utils/operator-runner.js';
 import { KV_KEY_SUBS, KV_KEY_PROFILES, KV_KEY_SETTINGS, DEFAULT_SETTINGS } from '../config.js';
 import { fetchSubscriptionNodes } from './node-fetcher.js';
 import { applyManualNodeName } from '../utils/node-cleaner.js';
+import { applyProfileSync } from '../../../src/utils/profile-sync.js';
 
 function ensureArray(data) {
     if (!data) return [];
@@ -88,7 +89,7 @@ function adaptLegacyTransform(config) {
 export async function handleProfileMode(request, env, profileId, userAgent, applyTransform = false, skipCertVerify = false) {
     const storageAdapter = StorageFactory.createAdapter(env, await StorageFactory.getStorageType(env));
 
-    const profile = typeof storageAdapter.getProfileById === 'function'
+    let profile = typeof storageAdapter.getProfileById === 'function'
         ? await storageAdapter.getProfileById(profileId)
         : (await storageAdapter.get(KV_KEY_PROFILES) || []).find(p => (p.customId && p.customId === profileId) || p.id === profileId);
     const settings = await storageAdapter.get(KV_KEY_SETTINGS) || DEFAULT_SETTINGS;
@@ -97,13 +98,24 @@ export async function handleProfileMode(request, env, profileId, userAgent, appl
         return createJsonResponse({ error: '订阅组不存在或已禁用' }, 404);
     }
 
+    let continuousItems = null;
+    if (profile.syncSettings?.mode === 'continuous') {
+        continuousItems = typeof storageAdapter.getAllSubscriptions === 'function'
+            ? await storageAdapter.getAllSubscriptions()
+            : await storageAdapter.get(KV_KEY_SUBS) || [];
+        profile = applyProfileSync(profile, {
+            subscriptions: continuousItems.filter(item => item?.url && /^https?:\/\//.test(item.url)),
+            manualNodes: continuousItems.filter(item => !item?.url || !/^https?:\/\//.test(item.url))
+        }, profile.syncSettings).profile;
+    }
+
     const relatedIds = [
         ...(Array.isArray(profile.subscriptions) ? profile.subscriptions.map(item => typeof item === 'object' ? item.id : item) : []),
         ...(Array.isArray(profile.manualNodes) ? profile.manualNodes : [])
     ].filter(Boolean);
-    const relatedSubs = typeof storageAdapter.getSubscriptionsByIds === 'function'
+    const relatedSubs = continuousItems || (typeof storageAdapter.getSubscriptionsByIds === 'function'
         ? await storageAdapter.getSubscriptionsByIds(Array.from(new Set(relatedIds)))
-        : await storageAdapter.get(KV_KEY_SUBS) || [];
+        : await storageAdapter.get(KV_KEY_SUBS) || []);
     const misubMap = new Map(relatedSubs.map(item => [item.id, item]));
 
     const targetMisubs = [];
