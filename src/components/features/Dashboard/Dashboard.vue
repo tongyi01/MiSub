@@ -111,7 +111,7 @@ const {
   subscriptions, subsCurrentPage, subsTotalPages, paginatedSubscriptions, totalRemainingTraffic,
   changeSubsPage, addSubscription, updateSubscription, deleteSubscription, deleteAllSubscriptions,
   addSubscriptionsFromBulk, handleUpdateNodeCount, batchUpdateAllSubscriptions, startAutoUpdate, stopAutoUpdate,
-  restartAutoUpdate, reorderSubscriptions,
+  restartAutoUpdate, reorderSubscriptions, autoSortSubscriptions,
 } = useSubscriptions(markDirty);
 
 const {
@@ -131,7 +131,7 @@ const {
   profiles, editingProfile, isNewProfile, showProfileModal, showDeleteProfilesModal,
   initializeProfiles, handleProfileToggle, handleAddProfile, handleEditProfile,
   handleSaveProfile, handleDeleteProfile, handleDeleteAllProfiles, copyProfileLink, copyClashLink,
-  cleanupSubscriptions, cleanupNodes, cleanupAllSubscriptions, cleanupAllNodes,
+  cleanupSubscriptions, cleanupNodes, cleanupAllSubscriptions, cleanupAllNodes, autoSortProfiles,
 } = useProfiles(markDirty);
 
 // --- UI State ---
@@ -290,9 +290,14 @@ const handleDeleteAllNodesWithCleanup = () => {
   // cleanup 已在 deleteAllNodes 内部通过 removeManualNodeFromProfiles 实现
   showDeleteNodesModal.value = false;
 };
-const handleAutoSortNodes = () => {
-  autoSortNodes();
-  showToast(t('manualNodes.sortedByRegion'), 'success');
+const handleAutoSortNodes = (mode) => {
+  autoSortNodes(mode);
+  const messageKey = mode === 'group-order'
+    ? 'manualNodes.sortedByGroupOrder'
+    : mode === 'name'
+      ? 'manualNodes.sortedByName'
+      : 'manualNodes.sortedByRegion';
+  showToast(t(messageKey), 'success');
 };
 
 const handleDeduplicateNodes = () => {
@@ -431,7 +436,7 @@ import SavePrompt from '../../ui/SavePrompt.vue';
           @update-node-count="handleUpdateNodeCount" @refresh-all="batchUpdateAllSubscriptions"
           @edit="(id) => handleEditSubscription(subscriptions.find(s => s.id === id))"
           @toggle-sort="isSortingSubs = !isSortingSubs" @mark-dirty="markDirty" @delete-all="showDeleteSubsModal = true"
-          @preview="handlePreviewSubscription" @reorder="reorderSubscriptions" 
+          @preview="handlePreviewSubscription" @reorder="reorderSubscriptions" @auto-sort="autoSortSubscriptions"
           @qrcode="(id) => handleQRCode(id, 'subscription')" @import="showBulkImportModal = true" />
 
         <!-- Manual Node Panel -->
@@ -460,7 +465,7 @@ import SavePrompt from '../../ui/SavePrompt.vue';
         <ProfilePanel :profiles="profiles" :compact="true" :is-sorting="isSortingProfiles" @add="handleAddProfile" @edit="handleEditProfile"
           @delete="handleDeleteProfile" @deleteAll="showDeleteProfilesModal = true" @toggle="handleProfileToggle"
           @open-copy="handleOpenCopy" @copyLink="copyProfileLink" @copyClashLink="copyClashLink" @preview="handlePreviewProfile" @viewLogs="handleViewLogs" @reorder="handleProfileReorder" 
-          @qrcode="(id) => handleQRCode(id, 'profile')" @toggle-sort="isSortingProfiles = !isSortingProfiles" />
+          @qrcode="(id) => handleQRCode(id, 'profile')" @toggle-sort="isSortingProfiles = !isSortingProfiles" @auto-sort="autoSortProfiles" />
       </div>
     </div>
   </div>

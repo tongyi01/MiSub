@@ -191,7 +191,7 @@ export function useManualNodes(markDirty) {
     applyDedupPlan(plan);
   }
 
-  function autoSortNodes() {
+  function autoSortNodes(mode = 'region') {
     // Sort logic requires replacing the list.
     // Since manual nodes are part of a larger list (subscriptions), we need to extract them, sort them, 
     // and then potentially re-insert them or just update their order relative to themselves?
@@ -202,7 +202,14 @@ export function useManualNodes(markDirty) {
     // Then Combine: [Subscriptions..., SortedManualNodes...]
     // This effectively moves all manual nodes to the bottom. This is acceptable/expected behavior.
 
-    const mergedList = buildAutoSortedSubscriptions(allSubscriptions.value || [], manualNodes.value);
+    const mergedList = buildAutoSortedSubscriptions(
+      allSubscriptions.value || [],
+      manualNodes.value,
+      {
+        mode,
+        groupOrder: manualNodeGroups.value
+      }
+    );
 
     // Update store with new order: Manual Nodes first, then Subscriptions
     dataStore.overwriteSubscriptions(mergedList);
@@ -295,8 +302,23 @@ export function useManualNodes(markDirty) {
   }
 
   function reorderGroups(newOrder) {
-    // 保存用户自定义的分组顺序
-    settingsStore.updateConfig({ manualNodeGroupOrder: newOrder });
+    const normalizedOrder = Array.from(new Set(
+      (newOrder || []).map(normalizeManualNodeGroupName).filter(Boolean)
+    ));
+
+    // 保留设置中的顺序供当前会话使用，同时立即重排真实节点数组。
+    // 节点数组由主保存接口写入 sortIndex，因此重新加载后顺序仍然有效。
+    settingsStore.updateConfig({ manualNodeGroupOrder: normalizedOrder });
+    const mergedList = buildAutoSortedSubscriptions(
+      allSubscriptions.value || [],
+      manualNodes.value,
+      {
+        mode: 'group-order',
+        groupOrder: normalizedOrder
+      }
+    );
+    dataStore.overwriteSubscriptions(mergedList);
+    manualNodesCurrentPage.value = 1;
     markDirty();
   }
 

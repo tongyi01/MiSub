@@ -22,7 +22,7 @@ const props = defineProps({
   filteredCount: { type: Number, default: undefined },
 });
 
-const emit = defineEmits(['add', 'delete', 'changePage', 'updateNodeCount', 'edit', 'toggleSort', 'markDirty', 'preview', 'deleteAll', 'refreshAll', 'reorder', 'import', 'qrcode', 'updateSearch']);
+const emit = defineEmits(['add', 'delete', 'changePage', 'updateNodeCount', 'edit', 'toggleSort', 'markDirty', 'preview', 'deleteAll', 'refreshAll', 'reorder', 'autoSort', 'import', 'qrcode', 'updateSearch']);
 
 const searchModel = computed({
   get: () => props.searchQuery,
@@ -73,6 +73,9 @@ const handleImport = () => emit('import');
               <button @click="handleToggleSort(); close()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
                 {{ isSorting ? t('actions.finishSort') : t('actions.manualSort') }}
               </button>
+              <div class="px-4 pb-1 pt-2 text-xs font-medium text-gray-400 dark:text-gray-500">{{ t('actions.autoSort') }}</div>
+              <button @click="emit('autoSort', 'name'); close()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t('actions.sortByName') }}</button>
+              <button @click="emit('autoSort', 'enabled-first'); close()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">{{ t('actions.sortEnabledFirst') }}</button>
               <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
               <button @click="handleDeleteAll(); close()" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-500/10">{{ t('actions.clearAll') }}</button>
             </template>
