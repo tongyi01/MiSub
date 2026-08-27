@@ -103,6 +103,17 @@ function sortManualNodesByGroupOrder(manualNodes, groupOrder) {
     .map(entry => entry.node);
 }
 
+function buildManualNodeSyncSource(manualNodes, currentEntries, settings) {
+  const orderedNodes = sortManualNodesByGroupOrder(manualNodes, settings.groupOrder);
+  const scopedNodes = selectManualNodeSource(orderedNodes, settings.groups);
+
+  if (settings.strategy === 'exact' || !settings.groups.length) return scopedNodes;
+
+  const currentIds = new Set(uniqueEntries(currentEntries).map(getProfileEntryId));
+  const scopedIds = new Set(scopedNodes.map(node => node.id));
+  return orderedNodes.filter(node => currentIds.has(node.id) || scopedIds.has(node.id));
+}
+
 function buildDiff(before, after) {
   const beforeIds = uniqueEntries(before).map(getProfileEntryId);
   const afterIds = uniqueEntries(after).map(getProfileEntryId);
@@ -120,12 +131,13 @@ function buildDiff(before, after) {
 export function applyProfileSync(profile, sources, rawSettings) {
   const settings = normalizeProfileSyncSettings(rawSettings);
   const subscriptions = (sources.subscriptions || []).filter(item => item?.id);
-  const manualNodes = sortManualNodesByGroupOrder(
-    selectManualNodeSource(
-      (sources.manualNodes || []).filter(item => item?.id),
-      settings.manualNodes.groups
-    ),
-    settings.manualNodes.groupOrder
+  const manualNodes = buildManualNodeSyncSource(
+    (sources.manualNodes || []).filter(item => item?.id),
+    profile.manualNodes || [],
+    {
+      ...settings.manualNodes,
+      strategy: settings.strategy
+    }
   );
   const nextProfile = { ...profile };
 

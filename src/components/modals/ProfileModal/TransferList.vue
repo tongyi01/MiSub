@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import draggable from 'vuedraggable';
 import { useI18n } from '@/i18n/index.js';
+import { moveSelectedAsBlock } from '@/utils/manual-node-bulk-order.js';
 
 const { t } = useI18n();
 const props = defineProps({
@@ -19,6 +20,8 @@ const props = defineProps({
 const emit = defineEmits(['update:searchTerm', 'update:selectedIds']);
 const sourceChecked = ref(new Set());
 const targetChecked = ref(new Set());
+const dragOriginalItems = ref([]);
+const draggedItemId = ref(null);
 const entryId = entry => typeof entry === 'object' && entry !== null ? entry.id : entry;
 const itemMap = computed(() => new Map(props.items.map(item => [item.id, item])));
 const selectedIdSet = computed(() => new Set(props.selectedIds.map(entryId)));
@@ -40,7 +43,13 @@ const displayedSelectedItems = computed({
   get: () => targetFilterSet.value
     ? orderedSelectedItems.value.filter(item => targetFilterSet.value.has(item.id))
     : orderedSelectedItems.value,
-  set: items => {
+  set: rawItems => {
+    const items = moveSelectedAsBlock(
+      dragOriginalItems.value,
+      rawItems,
+      targetChecked.value,
+      draggedItemId.value
+    );
     if (!targetFilterSet.value) {
       orderedSelectedItems.value = items;
       return;
@@ -51,6 +60,16 @@ const displayedSelectedItems = computed({
     ));
   }
 });
+
+function handleDragStart(event) {
+  dragOriginalItems.value = [...displayedSelectedItems.value];
+  draggedItemId.value = event?.item?.dataset?.entryId || null;
+}
+
+function handleDragEnd() {
+  dragOriginalItems.value = [];
+  draggedItemId.value = null;
+}
 
 watch([sourceItems, displayedSelectedItems], () => {
   const availableIds = new Set(addableSourceItems.value.map(item => item.id));
@@ -144,10 +163,11 @@ function clearAllSelected() {
             <button type="button" :disabled="targetChecked.size === 0" class="rounded-md px-2.5 py-1.5 text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-45 dark:text-gray-300 dark:hover:bg-white/5" @click="targetChecked = new Set()">{{ t('profileModal.clearSelection') }}</button>
             <button type="button" :disabled="orderedSelectedItems.length === 0" class="ml-auto rounded-md px-2.5 py-1.5 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-45 dark:hover:bg-red-500/10" @click="clearAllSelected">{{ t('profileModal.clearAllAdded') }}</button>
           </div>
+          <p v-if="targetChecked.size > 1" class="text-[11px] font-medium text-indigo-600 dark:text-indigo-300">{{ t('profileModal.multiDragHint') }}</p>
         </div>
-        <draggable v-model="displayedSelectedItems" item-key="id" handle=".drag-handle" ghost-class="opacity-40" class="h-72 space-y-1 overflow-y-auto p-2">
+        <draggable v-model="displayedSelectedItems" item-key="id" handle=".drag-handle" ghost-class="opacity-40" :animation="180" class="h-72 space-y-1 overflow-y-auto p-2" @start="handleDragStart" @end="handleDragEnd">
           <template #item="{ element, index }">
-            <div class="group flex min-h-10 items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 transition-colors hover:border-indigo-100 hover:bg-indigo-50/70 dark:hover:border-indigo-500/20 dark:hover:bg-indigo-500/10">
+            <div :data-entry-id="element.id" class="group flex min-h-10 items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors" :class="targetChecked.has(element.id) ? 'border-indigo-200 bg-indigo-50/70 dark:border-indigo-500/30 dark:bg-indigo-500/10' : 'border-transparent hover:border-indigo-100 hover:bg-indigo-50/70 dark:hover:border-indigo-500/20 dark:hover:bg-indigo-500/10'">
               <input type="checkbox" :checked="targetChecked.has(element.id)" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" @change="toggleTargetChecked(element.id)">
               <button type="button" class="drag-handle cursor-grab text-gray-400 active:cursor-grabbing" :aria-label="t('profileModal.dragToSort')"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7h8M8 12h8M8 17h8" /></svg></button>
               <span class="w-6 shrink-0 text-right text-xs font-semibold tabular-nums text-indigo-500">{{ index + 1 }}</span>

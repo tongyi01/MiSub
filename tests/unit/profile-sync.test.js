@@ -125,6 +125,30 @@ describe('profile sync', () => {
     expect(result.profiles[1].manualNodes).toEqual(['n4', 'n2', 'n1', 'n3']);
   });
 
+  it('reorders existing nodes outside the auto-add group scope in incremental mode', () => {
+    const sourceNodes = [
+      ...manualNodes,
+      { id: 'n5', name: 'Node 5', group: 'B' }
+    ];
+    const result = applyProfileSync({
+      id: 'p1',
+      subscriptions: [],
+      manualNodes: ['n1', 'n4', 'n2']
+    }, { subscriptions: [], manualNodes: sourceNodes }, {
+      strategy: 'incremental',
+      subscriptions: { enabled: false },
+      manualNodes: {
+        enabled: true,
+        includeNew: true,
+        groups: ['A'],
+        groupOrder: ['__ungrouped__', 'A', 'B']
+      }
+    });
+
+    expect(result.profile.manualNodes).toEqual(['n4', 'n1', 'n3', 'n2']);
+    expect(result.profile.manualNodes).not.toContain('n5');
+  });
+
   it('normalizes and deduplicates a saved profile group order', () => {
     const settings = normalizeProfileSyncSettings({
       manualNodes: { groupOrder: [' B ', 'A', 'B', '__ungrouped__', ' '] }
