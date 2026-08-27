@@ -149,7 +149,11 @@ const sortableManualNodes = computed(() => {
 });
 
 const draggableManualNodes = computed({
-  get: () => (props.isSorting ? [...sortableManualNodes.value] : [...props.manualNodes]),
+  get: () => {
+    if (props.isSorting) return [...sortableManualNodes.value];
+    if (isSelectionMode.value) return [...paginatedNodes.value];
+    return [...props.manualNodes];
+  },
   set: (val) => emit('reorder', val)
 });
 
@@ -175,7 +179,7 @@ const handleToggleSort = () => {
 const handleSortEnd = () => {
   emit('markDirty');
   // 手动排序完成后重置到第一页
-  if (!props.searchTerm) {
+  if (props.isSorting && !props.searchTerm) {
     emit('changePage', 1);
   }
 };

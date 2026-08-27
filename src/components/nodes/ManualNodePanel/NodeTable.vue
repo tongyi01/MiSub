@@ -53,6 +53,7 @@ const draggableModel = computed({
     draggedNodeId.value
   ))
 });
+const canDrag = computed(() => props.isSorting || props.isSelectionMode);
 
 function handleDragStart(event) {
   dragOriginalItems.value = [...props.draggableManualNodes];
@@ -85,7 +86,7 @@ const handleChangePage = (page) => {
       {{ t('manualNodes.noSearchResult', { keyword: localSearchTerm }) }}
     </div>
     
-    <div v-if="isSorting">
+    <div v-if="canDrag">
       <!-- 排序模式保持原有扁平列表，方便跨组排序 -->
       <div v-if="viewMode === 'card'">
         <draggable 
