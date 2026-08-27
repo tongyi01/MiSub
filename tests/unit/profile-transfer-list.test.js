@@ -19,7 +19,7 @@ function mountTransfer(props = {}) {
         draggable: {
           name: 'DraggableStub',
           props: ['modelValue'],
-          emits: ['update:modelValue'],
+          emits: ['update:modelValue', 'start', 'end'],
           template: '<div><slot name="item" v-for="(element, index) in modelValue" :element="element" :index="index" /><slot name="footer" /></div>'
         }
       }
@@ -65,6 +65,29 @@ describe('profile transfer list', () => {
     await draggable.vm.$emit('update:modelValue', [...visible].reverse());
 
     expect(wrapper.emitted('update:selectedIds')?.at(-1)?.[0]).toEqual(['s2', 's1']);
+  });
+
+  it('moves multiple checked target items as one stable block', async () => {
+    const items = [
+      { id: 's1', name: 'Source 1' },
+      { id: 's2', name: 'Source 2' },
+      { id: 's3', name: 'Source 3' }
+    ];
+    const wrapper = mountTransfer({
+      items,
+      filteredItems: items,
+      selectedIds: ['s1', 's2', 's3']
+    });
+
+    await wrapper.get('[data-entry-id="s1"] input[type="checkbox"]').setValue(true);
+    await wrapper.get('[data-entry-id="s3"] input[type="checkbox"]').setValue(true);
+    const draggable = wrapper.findComponent({ name: 'DraggableStub' });
+    const visible = draggable.props('modelValue');
+    await draggable.vm.$emit('start', { item: { dataset: { entryId: 's1' } } });
+    await draggable.vm.$emit('update:modelValue', [visible[1], visible[2], visible[0]]);
+    await draggable.vm.$emit('end');
+
+    expect(wrapper.emitted('update:selectedIds')?.at(-1)?.[0]).toEqual(['s2', 's1', 's3']);
   });
 
   it('clears all included items only after confirmation', async () => {
