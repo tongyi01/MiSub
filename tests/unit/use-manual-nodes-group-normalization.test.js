@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import { useManualNodes } from '../../src/composables/useManualNodes.js';
 import { useDataStore } from '../../src/stores/useDataStore.js';
+import { useSettingsStore } from '../../src/stores/settings.js';
 
 vi.mock('../../src/stores/toast.js', () => ({
   useToastStore: () => ({ showToast: vi.fn() })
@@ -46,5 +47,38 @@ describe('useManualNodes group normalization', () => {
     await nextTick();
 
     expect(dataStore.subscriptions.map(node => node.group)).toEqual(['FreezeHost', 'FreezeHost']);
+  });
+
+  it('新增节点时保留原分组顺序，并把新分组追加到末尾', () => {
+    const dataStore = useDataStore();
+    const settingsStore = useSettingsStore();
+    dataStore.subscriptions = [
+      { id: 'n1', name: 'node1', url: 'ss://example1', enabled: true, group: 'A' },
+      { id: 'n2', name: 'node2', url: 'ss://example2', enabled: true, group: 'B' }
+    ];
+    const { addNode, manualNodeGroups } = useManualNodes(vi.fn());
+
+    addNode({ id: 'n3', name: 'node3', url: 'ss://example3', enabled: true, group: 'B' });
+    expect(manualNodeGroups.value).toEqual(['A', 'B']);
+
+    addNode({ id: 'n4', name: 'node4', url: 'ss://example4', enabled: true, group: 'C' });
+    expect(manualNodeGroups.value).toEqual(['A', 'B', 'C']);
+    expect(settingsStore.config.manualNodeGroupOrder).toEqual(['A', 'B', 'C']);
+  });
+
+  it('批量新增节点时同样保留原分组顺序', () => {
+    const dataStore = useDataStore();
+    dataStore.subscriptions = [
+      { id: 'n1', name: 'node1', url: 'ss://example1', enabled: true, group: 'A' },
+      { id: 'n2', name: 'node2', url: 'ss://example2', enabled: true, group: 'B' }
+    ];
+    const { addNodesFromBulk, manualNodeGroups } = useManualNodes(vi.fn());
+
+    addNodesFromBulk([
+      { id: 'n3', name: 'node3', url: 'ss://example3', enabled: true, group: 'C' },
+      { id: 'n4', name: 'node4', url: 'ss://example4', enabled: true, group: 'B' }
+    ]);
+
+    expect(manualNodeGroups.value).toEqual(['A', 'B', 'C']);
   });
 });
