@@ -10,7 +10,8 @@ export const DEFAULT_PROFILE_SYNC_SETTINGS = Object.freeze({
   manualNodes: {
     enabled: true,
     includeNew: true,
-    groups: []
+    groups: [],
+    groupOrder: []
   }
 });
 
@@ -34,6 +35,12 @@ export function normalizeProfileSyncSettings(settings = {}) {
       includeNew: manualNodeSettings.includeNew !== false,
       groups: Array.from(new Set(
         (manualNodeSettings.groups || [])
+          .filter(group => typeof group === 'string')
+          .map(group => group === '__ungrouped__' ? group : normalizeManualNodeGroupName(group))
+          .filter(Boolean)
+      )),
+      groupOrder: Array.from(new Set(
+        (manualNodeSettings.groupOrder || [])
           .filter(group => typeof group === 'string')
           .map(group => group === '__ungrouped__' ? group : normalizeManualNodeGroupName(group))
           .filter(Boolean)
@@ -80,6 +87,22 @@ function selectManualNodeSource(manualNodes, groups) {
   });
 }
 
+function sortManualNodesByGroupOrder(manualNodes, groupOrder) {
+  if (!groupOrder.length) return manualNodes;
+
+  const rankByGroup = new Map(groupOrder.map((group, index) => [group, index]));
+  return manualNodes
+    .map((node, index) => ({ node, index }))
+    .sort((left, right) => {
+      const leftGroup = normalizeManualNodeGroupName(left.node.group) || '__ungrouped__';
+      const rightGroup = normalizeManualNodeGroupName(right.node.group) || '__ungrouped__';
+      const leftRank = rankByGroup.get(leftGroup) ?? Number.MAX_SAFE_INTEGER;
+      const rightRank = rankByGroup.get(rightGroup) ?? Number.MAX_SAFE_INTEGER;
+      return leftRank - rightRank || left.index - right.index;
+    })
+    .map(entry => entry.node);
+}
+
 function buildDiff(before, after) {
   const beforeIds = uniqueEntries(before).map(getProfileEntryId);
   const afterIds = uniqueEntries(after).map(getProfileEntryId);
@@ -97,9 +120,12 @@ function buildDiff(before, after) {
 export function applyProfileSync(profile, sources, rawSettings) {
   const settings = normalizeProfileSyncSettings(rawSettings);
   const subscriptions = (sources.subscriptions || []).filter(item => item?.id);
-  const manualNodes = selectManualNodeSource(
-    (sources.manualNodes || []).filter(item => item?.id),
-    settings.manualNodes.groups
+  const manualNodes = sortManualNodesByGroupOrder(
+    selectManualNodeSource(
+      (sources.manualNodes || []).filter(item => item?.id),
+      settings.manualNodes.groups
+    ),
+    settings.manualNodes.groupOrder
   );
   const nextProfile = { ...profile };
 

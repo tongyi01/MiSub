@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyContinuousProfileSync,
   applyProfileSync,
+  normalizeProfileSyncSettings,
   previewProfileSync
 } from '../../src/utils/profile-sync.js';
 
@@ -92,6 +93,44 @@ describe('profile sync', () => {
 
     expect(result.profiles[0].subscriptions).toEqual(['s2', 's1']);
     expect(result.profiles[1]).toBe(profiles[1]);
+  });
+
+  it('supports an independent manual-node group order for each profile', () => {
+    const profiles = [
+      {
+        id: 'a-first',
+        subscriptions: [],
+        manualNodes: ['n2', 'n1', 'n3', 'n4'],
+        syncSettings: {
+          mode: 'continuous',
+          subscriptions: { enabled: false },
+          manualNodes: { enabled: true, includeNew: true, groupOrder: ['A', 'B', '__ungrouped__'] }
+        }
+      },
+      {
+        id: 'ungrouped-first',
+        subscriptions: [],
+        manualNodes: ['n2', 'n1', 'n3', 'n4'],
+        syncSettings: {
+          mode: 'continuous',
+          subscriptions: { enabled: false },
+          manualNodes: { enabled: true, includeNew: true, groupOrder: ['__ungrouped__', 'B', 'A'] }
+        }
+      }
+    ];
+
+    const result = applyContinuousProfileSync(profiles, { subscriptions, manualNodes });
+
+    expect(result.profiles[0].manualNodes).toEqual(['n1', 'n3', 'n2', 'n4']);
+    expect(result.profiles[1].manualNodes).toEqual(['n4', 'n2', 'n1', 'n3']);
+  });
+
+  it('normalizes and deduplicates a saved profile group order', () => {
+    const settings = normalizeProfileSyncSettings({
+      manualNodes: { groupOrder: [' B ', 'A', 'B', '__ungrouped__', ' '] }
+    });
+
+    expect(settings.manualNodes.groupOrder).toEqual(['B', 'A', '__ungrouped__']);
   });
 
   it('builds a per-profile preview without mutating the profiles', () => {
