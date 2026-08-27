@@ -131,6 +131,7 @@ export function useManualNodes(markDirty) {
     if (!normalizedNode.name) {
       normalizedNode.name = extractNodeName(normalizedNode.url);
     }
+    preserveGroupOrderForAddedNodes([normalizedNode]);
     // Add to shared store
     dataStore.addSubscription(normalizedNode);
     manualNodesCurrentPage.value = 1;
@@ -178,11 +179,14 @@ export function useManualNodes(markDirty) {
 
   function addNodesFromBulk(nodes, groupName = '') {
     const normalizedGroupName = normalizeManualNodeGroupName(groupName);
+    const normalizedNodes = nodes.map(node => ({
+      ...node,
+      group: normalizeManualNodeGroupName(normalizedGroupName || node.group)
+    }));
+    preserveGroupOrderForAddedNodes(normalizedNodes);
     // Reverse insert so they appear in correct order when unshifted
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      const node = { ...nodes[i] };
-      node.group = normalizeManualNodeGroupName(normalizedGroupName || node.group);
-      dataStore.addSubscription(node);
+    for (let i = normalizedNodes.length - 1; i >= 0; i--) {
+      dataStore.addSubscription(normalizedNodes[i]);
     }
     markDirty();
   }
@@ -268,6 +272,18 @@ export function useManualNodes(markDirty) {
     const customOrder = settingsStore.config.manualNodeGroupOrder || [];
     return collectManualNodeGroups(manualNodes.value, customOrder);
   });
+
+  function preserveGroupOrderForAddedNodes(nodes) {
+    const currentOrder = manualNodeGroups.value;
+    const addedGroups = (nodes || [])
+      .map(node => normalizeManualNodeGroupName(node.group))
+      .filter(Boolean);
+    const nextOrder = Array.from(new Set([...currentOrder, ...addedGroups]));
+
+    if (nextOrder.length > 0) {
+      settingsStore.updateConfig({ manualNodeGroupOrder: nextOrder });
+    }
+  }
 
   const groupedManualNodes = computed(() => {
     return buildGroupedManualNodes(filteredManualNodes.value, manualNodeGroups.value);
