@@ -202,7 +202,8 @@ function ensureDnsProxyGroup(model) {
         options: {
             url: 'http://www.gstatic.com/generate_204',
             interval: 300,
-            tolerance: 50
+            tolerance: 50,
+            hidden: true
         }
     });
 }

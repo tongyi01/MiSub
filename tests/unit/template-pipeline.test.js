@@ -92,6 +92,10 @@ MATCH,节点选择
 
         const parsed = yaml.load(rendered);
         expect(parsed['proxy-groups'][0].name).toBe('节点选择');
+        expect(parsed['proxy-groups'].find(group => group.name === '🌐 DNS 出口')).toEqual(
+            expect.objectContaining({ type: 'url-test', hidden: true })
+        );
+        expect(parsed.dns.nameserver.every(server => server.endsWith('#🌐 DNS 出口'))).toBe(true);
         expect(parsed.rules).toContain('MATCH,节点选择');
         expect(parsed.profile['subscription-url']).toBe('https://example.com/sub');
     });
