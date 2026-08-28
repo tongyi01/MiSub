@@ -232,6 +232,11 @@ function isAiGroupName(name) {
     );
 }
 
+function hasExplicitAiPolicy(model) {
+    return model.groups.some(group => isAiGroupName(group.name)) ||
+        model.rules.some(rule => isAiGroupName(rule.policy));
+}
+
 function proxyOnlyMembers(members) {
     return Array.from(
         new Set(
@@ -351,9 +356,9 @@ export function applySmartModelOptimizations(model) {
         ensureDnsProxyGroup(model);
     }
 
-    // 3. AI 服务分组与分流规则注入：
-    // 仅在非纯自定义模板模式（启用内置分流）下才注入
-    if (!isCustomOrNone) {
+    // 只为模板明确声明的 AI 策略补全 fail-closed 分组和域名规则。
+    // 普通自定义模板保持用户原始策略，不再被强制注入 AI 分组。
+    if (hasExplicitAiPolicy(model)) {
         ensureAiPolicy(model);
     }
 
