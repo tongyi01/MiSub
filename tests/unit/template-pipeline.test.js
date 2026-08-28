@@ -93,7 +93,7 @@ MATCH,节点选择
         const parsed = yaml.load(rendered);
         expect(parsed['proxy-groups'][0].name).toBe('节点选择');
         expect(parsed['proxy-groups'].find(group => group.name === '🌐 DNS 出口')).toEqual(
-            expect.objectContaining({ type: 'url-test', hidden: true })
+            expect.objectContaining({ type: 'select', proxies: ['节点选择'] })
         );
         expect(parsed.dns.nameserver.every(server => server.endsWith('#🌐 DNS 出口'))).toBe(true);
         expect(parsed.rules).toContain('MATCH,节点选择');
@@ -119,6 +119,26 @@ MATCH,节点选择
         const autoSelectGroup = parsed['proxy-groups'].find(group => group.name === '自动选择');
         expect(autoSelectGroup.proxies).toEqual(['HK-01', 'JP-01']);
         expect(autoSelectGroup.proxies).not.toContain('DIRECT');
+    });
+
+    it('keeps a safe DNS auto-test fallback when a template has no recognizable main selector', () => {
+        const rendered = renderClashFromIniTemplate(`
+[Proxy Group]
+备用测速 = url-test, HK-01, JP-01, url=http://www.gstatic.com/generate_204, interval=300
+
+[Rule]
+MATCH,备用测速
+        `, {
+            proxies: [
+                { name: 'HK-01', type: 'trojan', server: '1.1.1.1', port: 443, password: 'pass' },
+                { name: 'JP-01', type: 'trojan', server: '2.2.2.2', port: 443, password: 'pass' }
+            ]
+        });
+
+        const parsed = yaml.load(rendered);
+        expect(parsed['proxy-groups'].find(group => group.name === '🌐 DNS 出口')).toEqual(
+            expect.objectContaining({ type: 'url-test', proxies: ['HK-01', 'JP-01'] })
+        );
     });
 
     it('does not inject AI service groups into a normal custom template', () => {

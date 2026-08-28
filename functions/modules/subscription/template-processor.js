@@ -194,6 +194,31 @@ function pruneInvalidMembers(model) {
 function ensureDnsProxyGroup(model) {
     if (model.groups.some(group => group.name === DNS_PROXY_GROUP)) return;
     const proxyNames = model.proxies.map(proxy => proxy.name || proxy.tag).filter(Boolean);
+    const preferredNames = [
+        /^(?:🚀\s*)?节点选择$/i,
+        /^(?:🌍\s*)?总出口$/i,
+        /^(?:🚀\s*)?(?:proxy|default|global|main)$/i,
+        /节点选择|总出口|主.*选择|代理选择|proxy|default|global|main/i
+    ];
+    const primaryGroup = preferredNames
+        .map(pattern => model.groups.find(group =>
+            group.name !== DNS_PROXY_GROUP &&
+            !isAiGroupName(group.name) &&
+            pattern.test(String(group.name || ''))
+        ))
+        .find(Boolean);
+
+    if (primaryGroup) {
+        model.groups.push({
+            name: DNS_PROXY_GROUP,
+            type: 'select',
+            members: [primaryGroup.name],
+            filters: [],
+            options: {}
+        });
+        return;
+    }
+
     model.groups.push({
         name: DNS_PROXY_GROUP,
         type: 'url-test',
@@ -202,8 +227,7 @@ function ensureDnsProxyGroup(model) {
         options: {
             url: 'http://www.gstatic.com/generate_204',
             interval: 300,
-            tolerance: 50,
-            hidden: true
+            tolerance: 50
         }
     });
 }
