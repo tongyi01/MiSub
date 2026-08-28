@@ -212,6 +212,11 @@ function isAiGroupName(name) {
     return /人工智能|智能\s*ai|(?:^|[^a-z])(ai|claude|openai|gemini|grok|mistral|deepseek|perplexity|copilot)(?=$|[^a-z])/i.test(value);
 }
 
+function hasExplicitAiPolicy(model) {
+    return model.groups.some(group => isAiGroupName(group.name)) ||
+        model.rules.some(rule => isAiGroupName(rule.policy));
+}
+
 function proxyOnlyMembers(members) {
     return Array.from(new Set((Array.isArray(members) ? members : []).filter(member =>
         !['DIRECT', 'REJECT-DROP', 'PASS'].includes(String(member).toUpperCase())
@@ -309,8 +314,11 @@ export function applySmartModelOptimizations(model) {
     // DNS 出站不能继承普通主组的 DIRECT 选项，否则 TUN 下会泄露或形成递归。
     ensureDnsProxyGroup(model);
 
-    // AI 服务分组必须代理优先且 fail-closed；同时补齐主要服务的独立域名规则。
-    ensureAiPolicy(model);
+    // 只为模板明确声明的 AI 策略补全 fail-closed 分组和域名规则。
+    // 普通自定义模板保持用户原始策略，不再被强制注入 AI 分组。
+    if (hasExplicitAiPolicy(model)) {
+        ensureAiPolicy(model);
+    }
 
     // 2. 检查等级。如果是 none (完全禁用)，我们只执行占位符展开和清理，不进行智能注入。
     const normalizedLevel = (ruleLevel || '').toLowerCase();
