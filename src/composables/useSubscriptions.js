@@ -7,7 +7,7 @@ import { fetchNodeCount, batchUpdateNodes } from '../lib/api.js';
 import { handleError } from '../utils/errorHandler.js';
 import { TIMING } from '../constants/timing.js';
 import { t } from '../i18n/index.js';
-import { sortCollection } from '../utils/collection-sorting.js';
+import { getAirportIdentityKey } from '../utils/airport-identity.js';
 
 const isDev = import.meta.env.DEV;
 
@@ -528,89 +528,30 @@ export function useSubscriptions(markDirty) {
         markDirty();
     }
 
-    // 如果间隔为0，表示禁用自动更新
-    if (intervalMs === 0) {
-      stopAutoUpdate();
-      if (isDev) console.debug('[AutoUpdate] Disabled by user setting');
-      return;
-    }
-
-    // 如果间隔没变且定时器已运行，不需要重启
-    if (autoUpdateTimerId && intervalMs === currentIntervalMs) {
-      return;
-    }
-
-    // 停止旧定时器
-    stopAutoUpdate();
-
-    // 启动新定时器
-    currentIntervalMs = intervalMs;
-    autoUpdateTimerId = setInterval(() => {
-      void autoUpdateAllSubscriptions();
-    }, intervalMs);
-
-    if (isDev) console.debug(`[AutoUpdate] Started with interval: ${intervalMs / 60000} minutes`);
-  }
-
-  function stopAutoUpdate() {
-    if (autoUpdateTimerId) {
-      clearInterval(autoUpdateTimerId);
-      autoUpdateTimerId = null;
-      if (isDev) console.debug('[AutoUpdate] Stopped');
-    }
-  }
-
-  function restartAutoUpdate(intervalMinutes) {
-    stopAutoUpdate();
-    startAutoUpdate(intervalMinutes);
-  }
-
-  function reorderSubscriptions(newOrder) {
-    // 1. Get all Manual Nodes (to preserve them)
-    // We can't rely just on manualNodes computed because it might be filtered or not imported here.
-    // Instead, filter from source of truth: allSubscriptions
-    const currentManualNodes = (allSubscriptions.value || []).filter(item => !item.url || !/^https?:\/\//.test(item.url));
-
-    // 2. Combine New Ordered Subscriptions + Existing Manual Nodes
-    // Logic: Manual Nodes at top, Subscriptions at bottom
-    const mergedList = [...currentManualNodes, ...newOrder];
-
-    // 3. Update Store
-    dataStore.overwriteSubscriptions(mergedList);
-
-    // 4. Mark Dirty
-    markDirty();
-  }
-
-  function autoSortSubscriptions(mode = 'name') {
-    const currentManualNodes = (allSubscriptions.value || []).filter(item => !item.url || !/^https?:\/\//.test(item.url));
-    const sortedSubscriptions = sortCollection(subscriptions.value, mode);
-    dataStore.overwriteSubscriptions([...currentManualNodes, ...sortedSubscriptions]);
-    subsCurrentPage.value = 1;
-    markDirty();
-  }
-
-  return {
-    subscriptions,
-    filteredSubscriptions,
-    searchQuery,
-    subsCurrentPage,
-    subsTotalPages,
-    paginatedSubscriptions,
-    totalRemainingTraffic,
-    enabledSubscriptionsCount: computed(() => enabledSubscriptions.value.length),
-    changeSubsPage,
-    addSubscription,
-    updateSubscription,
-    deleteSubscription,
-    deleteAllSubscriptions,
-    addSubscriptionsFromBulk,
-    handleUpdateNodeCount,
-    batchUpdateAllSubscriptions,
-    startAutoUpdate,
-    stopAutoUpdate,
-    restartAutoUpdate,
-    reorderSubscriptions,
-    autoSortSubscriptions,
-  };
+    return {
+        subscriptions,
+        searchQuery,
+        filteredSubscriptions,
+        filteredCount: computed(() => filteredSubscriptions.value.length),
+        isRefreshing,
+        refreshError,
+        lastRefreshAt,
+        subsCurrentPage,
+        subsTotalPages,
+        paginatedSubscriptions,
+        totalRemainingTraffic,
+        enabledSubscriptionsCount: computed(() => enabledSubscriptions.value.length),
+        changeSubsPage,
+        addSubscription,
+        updateSubscription,
+        deleteSubscription,
+        deleteAllSubscriptions,
+        addSubscriptionsFromBulk,
+        handleUpdateNodeCount,
+        batchUpdateAllSubscriptions,
+        startAutoUpdate,
+        stopAutoUpdate,
+        restartAutoUpdate,
+        reorderSubscriptions,
+    };
 }

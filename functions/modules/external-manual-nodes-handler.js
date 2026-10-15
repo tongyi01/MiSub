@@ -12,7 +12,6 @@ import {
 } from './external-api-utils.js';
 import { detectNodeProtocol, isManualNode, toExternalManualNode } from './external-api-mappers.js';
 import { parseNodeList } from './utils/node-parser.js';
-import { normalizeTuicV5Url } from '../../src/utils/tuic-url.js';
 
 function nowIso() {
     return new Date().toISOString();
@@ -152,45 +151,67 @@ export async function handleExternalManualNodesRequest(request, env, selector = 
                 400
             );
 
-    const all = await storageAdapter.getAllSubscriptions();
-    const timestamp = nowIso();
-    const item = {
-      id: generateId('node'),
-      name: String(payload.name).trim(),
-      url: normalizeTuicV5Url(String(payload.url).trim()),
-      enabled: payload.enabled !== false,
-      group: String(payload.group || '').trim(),
-      tags: normalizeStringArray(payload.tags),
-      remarks: String(payload.remarks || '').trim(),
-      sortIndex: Number.isFinite(Number(payload.sortIndex)) ? Number(payload.sortIndex) : nextSortIndex(all),
-      createdAt: timestamp,
-      updatedAt: timestamp
-    };
-    await storageAdapter.putSubscription(item);
-    return createExternalSuccess(toExternalManualNode(item), 201);
-  }
+        const all = await storageAdapter.getAllSubscriptions();
+        const timestamp = nowIso();
+        const item = {
+            id: generateId('node'),
+            name: String(payload.name).trim(),
+            url: String(payload.url).trim(),
+            enabled: payload.enabled !== false,
+            group: String(payload.group || '').trim(),
+            tags: normalizeStringArray(payload.tags),
+            remarks: String(payload.remarks || '').trim(),
+            sortIndex: Number.isFinite(Number(payload.sortIndex))
+                ? Number(payload.sortIndex)
+                : nextSortIndex(all),
+            createdAt: timestamp,
+            updatedAt: timestamp,
+        };
+        await storageAdapter.putSubscription(item);
+        return createExternalSuccess(toExternalManualNode(item), 201);
+    }
 
-  if (request.method === 'PATCH' && id) {
-    const current = await getManualNodeById(storageAdapter, id);
-    if (!current) return createExternalError('manual_node_not_found', 'Manual node not found', 404);
-    const payload = await readExternalJson(request);
-    const updated = {
-      ...current,
-      ...(payload.name !== undefined ? { name: String(payload.name || '').trim() } : {}),
-      ...(payload.url !== undefined ? { url: normalizeTuicV5Url(String(payload.url || '').trim()) } : {}),
-      ...(payload.enabled !== undefined ? { enabled: payload.enabled !== false } : {}),
-      ...(payload.group !== undefined ? { group: String(payload.group || '').trim() } : {}),
-      ...(payload.tags !== undefined ? { tags: normalizeStringArray(payload.tags) } : {}),
-      ...(payload.remarks !== undefined ? { remarks: String(payload.remarks || '').trim() } : {}),
-      ...(payload.sortIndex !== undefined ? { sortIndex: Number(payload.sortIndex) || 0 } : {}),
-      updatedAt: nowIso()
-    };
-    if (!String(updated.name || '').trim()) return createExternalError('manual_node_name_required', 'Manual node name is required', 400);
-    if (!String(updated.url || '').trim()) return createExternalError('manual_node_url_required', 'Manual node URL is required', 400);
-    if (!isManualNode(updated)) return createExternalError('invalid_manual_node_url', 'Manual node URL must use a supported node protocol', 400);
-    await storageAdapter.putSubscription(updated);
-    return createExternalSuccess(toExternalManualNode(updated));
-  }
+    if (request.method === 'PATCH' && id) {
+        const current = await getManualNodeById(storageAdapter, id);
+        if (!current)
+            return createExternalError('manual_node_not_found', 'Manual node not found', 404);
+        const payload = await readExternalJson(request);
+        const updated = {
+            ...current,
+            ...(payload.name !== undefined ? { name: String(payload.name || '').trim() } : {}),
+            ...(payload.url !== undefined ? { url: String(payload.url || '').trim() } : {}),
+            ...(payload.enabled !== undefined ? { enabled: payload.enabled !== false } : {}),
+            ...(payload.group !== undefined ? { group: String(payload.group || '').trim() } : {}),
+            ...(payload.tags !== undefined ? { tags: normalizeStringArray(payload.tags) } : {}),
+            ...(payload.remarks !== undefined
+                ? { remarks: String(payload.remarks || '').trim() }
+                : {}),
+            ...(payload.sortIndex !== undefined
+                ? { sortIndex: Number(payload.sortIndex) || 0 }
+                : {}),
+            updatedAt: nowIso(),
+        };
+        if (!String(updated.name || '').trim())
+            return createExternalError(
+                'manual_node_name_required',
+                'Manual node name is required',
+                400
+            );
+        if (!String(updated.url || '').trim())
+            return createExternalError(
+                'manual_node_url_required',
+                'Manual node URL is required',
+                400
+            );
+        if (!isManualNode(updated))
+            return createExternalError(
+                'invalid_manual_node_url',
+                'Manual node URL must use a supported node protocol',
+                400
+            );
+        await storageAdapter.putSubscription(updated);
+        return createExternalSuccess(toExternalManualNode(updated));
+    }
 
     if (request.method === 'DELETE' && id) {
         const current = await getManualNodeById(storageAdapter, id);

@@ -1,9 +1,8 @@
 <script setup>
-import { computed } from 'vue';
-import { extractHostAndPort } from '../../lib/utils.js';
-import { useToastStore } from '../../stores/toast.js';
-import { useI18n } from '@/i18n/index.js';
-import { normalizeTuicV5Url } from '../../utils/tuic-url.js';
+    import { computed } from 'vue';
+    import { extractHostAndPort } from '../../lib/utils.js';
+    import { useToastStore } from '../../stores/toast.js';
+    import { useI18n } from '@/i18n/index.js';
 
     const props = defineProps({
         node: {
@@ -55,38 +54,8 @@ import { normalizeTuicV5Url } from '../../utils/tuic-url.js';
         return 'unknown';
     };
 
-const protocol = computed(() => getProtocol(props.node.url));
-const hostAndPort = computed(() => extractHostAndPort(props.node.url));
-
-const protocolStyle = computed(() => {
-  const p = protocol.value;
-  const styles = {
-    anytls: { text: 'AnyTLS', style: 'bg-slate-500/20 text-slate-500 dark:text-slate-400' },
-    vless: { text: 'VLESS', style: 'bg-blue-500/20 text-blue-500 dark:text-blue-400' },
-    hysteria2: { text: 'HY2', style: 'bg-purple-500/20 text-purple-500 dark:text-purple-400' },
-    hysteria: { text: 'Hysteria', style: 'bg-fuchsia-500/20 text-fuchsia-500 dark:text-fuchsia-400' },
-    tuic: { text: 'TUIC', style: 'bg-cyan-500/20 text-cyan-500 dark:text-cyan-400' },
-    trojan: { text: 'TROJAN', style: 'bg-red-500/20 text-red-500 dark:text-red-400' },
-    ssr: { text: 'SSR', style: 'bg-rose-500/20 text-rose-500 dark:text-rose-400' },
-    ss: { text: 'SS', style: 'bg-orange-500/20 text-orange-500 dark:text-orange-400' },
-    vmess: { text: 'VMESS', style: 'bg-teal-500/20 text-teal-500 dark:text-teal-400' },
-    socks5: { text: 'SOCKS5', style: 'bg-lime-500/20 text-lime-500 dark:text-lime-400' },
-    http: { text: 'HTTP', style: 'bg-green-500/20 text-green-500 dark:text-green-400' },
-    snell: { text: 'SNELL', style: 'bg-indigo-500/20 text-indigo-500 dark:text-indigo-400' },
-    naive: { text: 'NAIVE', style: 'bg-pink-500/20 text-pink-500 dark:text-pink-400' },
-    unknown: { text: 'LINK', style: 'bg-gray-500/20 text-gray-500 dark:text-gray-400' }
-  };
-	return styles[p] || styles['unknown'];
-});
-
-const copyToClipboard = async (text) => {
-  try {
-    await navigator.clipboard.writeText(normalizeTuicV5Url(text));
-    showToast(t('notices.copied'), 'success');
-  } catch {
-    showToast(t('notices.copyFailed'), 'error');
-  }
-};
+    const protocol = computed(() => getProtocol(props.node.url));
+    const hostAndPort = computed(() => extractHostAndPort(props.node.url));
 
     const protocolStyle = computed(() => {
         const p = protocol.value;

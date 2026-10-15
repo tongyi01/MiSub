@@ -279,19 +279,7 @@ export async function handleMisubsSave(request, env) {
             );
         }
 
-        const { misubs, profiles, diff, manualNodeGroupOrder } = requestData;
-        if (manualNodeGroupOrder !== undefined && !Array.isArray(manualNodeGroupOrder)) {
-            return createJsonResponse({
-                success: false,
-                message: 'manualNodeGroupOrder 必须是数组格式'
-            }, 400);
-        }
-        const normalizedManualNodeGroupOrder = Array.isArray(manualNodeGroupOrder)
-            ? Array.from(new Set(manualNodeGroupOrder
-                .filter(group => typeof group === 'string')
-                .map(group => group.trim())
-                .filter(Boolean)))
-            : null;
+        const { misubs, profiles, diff } = requestData;
         const storageAdapter = await getStorageAdapter(env);
 
         let finalMisubs = misubs;
@@ -407,12 +395,6 @@ export async function handleMisubsSave(request, env) {
         } catch (settingsError) {
             settings = defaultSettings; // 使用默认设置继续
         }
-        if (normalizedManualNodeGroupOrder) {
-            settings = {
-                ...settings,
-                manualNodeGroupOrder: normalizedManualNodeGroupOrder
-            };
-        }
 
         // 步骤5: 处理通知（非阻塞，错误不影响保存）
         // 仅在有订阅数据时处理
@@ -453,8 +435,8 @@ export async function handleMisubsSave(request, env) {
 
                 const saveTasks = [];
                 if (!subsHandled) saveTasks.push(storageAdapter.put(KV_KEY_SUBS, finalMisubs));
-                if (!profilesHandled) saveTasks.push(storageAdapter.put(KV_KEY_PROFILES, finalProfiles));
-                if (normalizedManualNodeGroupOrder) saveTasks.push(storageAdapter.put(KV_KEY_SETTINGS, settings));
+                if (!profilesHandled)
+                    saveTasks.push(storageAdapter.put(KV_KEY_PROFILES, finalProfiles));
                 if (saveTasks.length > 0) {
                     await Promise.all(saveTasks);
                 }
@@ -466,8 +448,8 @@ export async function handleMisubsSave(request, env) {
 
                 const saveTasks = [];
                 if (!subsHandled) saveTasks.push(storageAdapter.put(KV_KEY_SUBS, finalMisubs));
-                if (!profilesHandled) saveTasks.push(storageAdapter.put(KV_KEY_PROFILES, finalProfiles));
-                if (normalizedManualNodeGroupOrder) saveTasks.push(storageAdapter.put(KV_KEY_SETTINGS, settings));
+                if (!profilesHandled)
+                    saveTasks.push(storageAdapter.put(KV_KEY_PROFILES, finalProfiles));
                 if (saveTasks.length > 0) {
                     await Promise.all(saveTasks);
                 }

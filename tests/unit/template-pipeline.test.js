@@ -142,10 +142,6 @@ MATCH,节点选择
 
         const parsed = yaml.load(rendered);
         expect(parsed['proxy-groups'][0].name).toBe('节点选择');
-        expect(parsed['proxy-groups'].find(group => group.name === '🌐 DNS 出口')).toEqual(
-            expect.objectContaining({ type: 'select', proxies: ['节点选择'] })
-        );
-        expect(parsed.dns.nameserver.every(server => server.endsWith('#🌐 DNS 出口'))).toBe(true);
         expect(parsed.rules).toContain('MATCH,节点选择');
         expect(parsed.profile['subscription-url']).toBe('https://example.com/sub');
     });
@@ -186,28 +182,9 @@ MATCH,节点选择
         expect(autoSelectGroup.proxies).not.toContain('DIRECT');
     });
 
-    it('keeps a safe DNS auto-test fallback when a template has no recognizable main selector', () => {
-        const rendered = renderClashFromIniTemplate(`
-[Proxy Group]
-备用测速 = url-test, HK-01, JP-01, url=http://www.gstatic.com/generate_204, interval=300
-
-[Rule]
-MATCH,备用测速
-        `, {
-            proxies: [
-                { name: 'HK-01', type: 'trojan', server: '1.1.1.1', port: 443, password: 'pass' },
-                { name: 'JP-01', type: 'trojan', server: '2.2.2.2', port: 443, password: 'pass' }
-            ]
-        });
-
-        const parsed = yaml.load(rendered);
-        expect(parsed['proxy-groups'].find(group => group.name === '🌐 DNS 出口')).toEqual(
-            expect.objectContaining({ type: 'url-test', proxies: ['HK-01', 'JP-01'] })
-        );
-    });
-
-    it('does not inject AI service groups into a normal custom template', () => {
-        const rendered = renderClashFromIniTemplate(`
+    it('adds fail-closed AI service groups without changing a normal Main group', () => {
+        const rendered = renderClashFromIniTemplate(
+            `
 [Proxy Group]
 Main = select, HK-01, DIRECT
 
@@ -228,31 +205,14 @@ MATCH,Main
         );
 
         const parsed = yaml.load(rendered);
-        const aiGroups = parsed['proxy-groups'].filter(group => String(group.name).startsWith('🤖'));
-        expect(aiGroups).toEqual([]);
-        expect(parsed['proxy-groups'].find(group => group.name === 'Main').proxies).toContain('DIRECT');
-        expect(parsed.rules).not.toContain('DOMAIN-SUFFIX,anthropic.com,🤖 Claude');
-    });
-
-    it('completes fail-closed AI service groups when the template explicitly declares AI policy', () => {
-        const rendered = renderClashFromIniTemplate(`
-[Proxy Group]
-Main = select, HK-01, DIRECT
-🤖 AI 服务 = select, HK-01, DIRECT
-
-[Rule]
-DOMAIN-SUFFIX,openai.com,🤖 AI 服务
-MATCH,Main
-        `, {
-            proxies: [
-                { name: 'HK-01', type: 'trojan', server: '1.1.1.1', port: 443, password: 'pass' }
-            ]
-        });
-
-        const parsed = yaml.load(rendered);
-        const aiGroups = parsed['proxy-groups'].filter(group => String(group.name).startsWith('🤖'));
+        const aiGroups = parsed['proxy-groups'].filter((group) =>
+            String(group.name).startsWith('🤖')
+        );
         expect(aiGroups.length).toBeGreaterThan(3);
-        expect(aiGroups.every(group => !group.proxies.includes('DIRECT'))).toBe(true);
+        expect(aiGroups.every((group) => !group.proxies.includes('DIRECT'))).toBe(true);
+        expect(parsed['proxy-groups'].find((group) => group.name === 'Main').proxies).toContain(
+            'DIRECT'
+        );
         expect(parsed.rules).toContain('DOMAIN-SUFFIX,anthropic.com,🤖 Claude');
     });
 

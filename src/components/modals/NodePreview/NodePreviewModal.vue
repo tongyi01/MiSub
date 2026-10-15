@@ -1,16 +1,16 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { api, APIError } from '../../../lib/http.js';
-import { useToastStore } from '../../../stores/toast.js';
-import { useDataStore } from '../../../stores/useDataStore.js';
-import { useManualNodes } from '../../../composables/useManualNodes.js';
-import { useI18n } from '../../../i18n/index.js';
-import Modal from '../../forms/Modal.vue';
-import NodeFilters from './components/NodeFilters.vue';
-import NodeList from './components/NodeList.vue';
-import NodeCard from './components/NodeCard.vue';
-import NodePagination from './components/NodePagination.vue';
-import { normalizeTuicV5Url } from '../../../utils/tuic-url.js';
+    import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+    import { api, APIError } from '../../../lib/http.js';
+    import { useToastStore } from '../../../stores/toast.js';
+    import { useDataStore } from '../../../stores/useDataStore.js';
+    import { useManualNodes } from '../../../composables/useManualNodes.js';
+    import { useI18n } from '../../../i18n/index.js';
+    import { isNetworkErrorMessage } from '../../../utils/network-error.js';
+    import Modal from '../../forms/Modal.vue';
+    import NodeFilters from './components/NodeFilters.vue';
+    import NodeList from './components/NodeList.vue';
+    import NodeCard from './components/NodeCard.vue';
+    import NodePagination from './components/NodePagination.vue';
 
     const isDev = import.meta.env.DEV;
     const { t } = useI18n();
@@ -144,121 +144,9 @@ import { normalizeTuicV5Url } from '../../../utils/tuic-url.js';
     const filteredNodes = computed(() => {
         let result = allNodes.value;
 
-    allNodes.value = [];
-  } finally {
-    loading.value = false;
-  }
-};
-
-// 复制节点链接
-const copyNodeUrl = async (node, nodeId) => {
-  const compatibleUrl = normalizeTuicV5Url(node.url);
-  try {
-    await navigator.clipboard.writeText(compatibleUrl);
-    copiedNodeId.value = nodeId;
-    setTimeout(() => {
-      copiedNodeId.value = '';
-    }, 2000);
-  } catch (err) {
-    // 降级方案
-    const textArea = document.createElement('textarea');
-    textArea.value = compatibleUrl;
-    document.body.appendChild(textArea);
-    textArea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textArea);
-    copiedNodeId.value = nodeId;
-    setTimeout(() => {
-      copiedNodeId.value = '';
-    }, 2000);
-  }
-};
-
-// 获取协议类型的显示样式
-const getProtocolStyle = (protocol) => {
-  const styles = {
-    vmess: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    vless: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    trojan: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-    ss: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-    ssr: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-    hysteria2: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
-    hy2: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
-    tuic: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
-    socks5: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-    anytls: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-    unknown: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-  };
-  return styles[protocol] || styles.unknown;
-};
-
-// 获取地区 Emoji
-const getRegionEmoji = (region) => {
-  if (!region) return '🌐';
-  
-  // 常见国家/地区映射
-  const regionMap = {
-    'HK': '🇭🇰', 'Hong Kong': '🇭🇰', '香港': '🇭🇰',
-    'TW': '🇨🇳', 'Taiwan': '🇨🇳', '台湾': '🇨🇳',
-    'JP': '🇯🇵', 'Japan': '🇯🇵', '日本': '🇯🇵',
-    'US': '🇺🇸', 'United States': '🇺🇸', '美国': '🇺🇸',
-    'SG': '🇸🇬', 'Singapore': '🇸🇬', '新加坡': '🇸🇬',
-    'KR': '🇰🇷', 'Korea': '🇰🇷', '韩国': '🇰🇷',
-    'UK': '🇬🇧', 'United Kingdom': '🇬🇧', '英国': '🇬🇧',
-    'DE': '🇩🇪', 'Germany': '🇩🇪', '德国': '🇩🇪',
-    'FR': '🇫🇷', 'France': '🇫🇷', '法国': '🇫🇷',
-    'RU': '🇷🇺', 'Russia': '🇷🇺', '俄罗斯': '🇷🇺',
-    'CA': '🇨🇦', 'Canada': '🇨🇦', '加拿大': '🇨🇦',
-    'MO': '🇲🇴', 'Macao': '🇲🇴', '澳门': '🇲🇴',
-    'CN': '🇨🇳', 'China': '🇨🇳', '中国': '🇨🇳',
-    'IN': '🇮🇳', 'India': '🇮🇳', '印度': '🇮🇳',
-    'NL': '🇳🇱', 'Netherlands': '🇳🇱', '荷兰': '🇳🇱',
-    'AU': '🇦🇺', 'Australia': '🇦🇺', '澳大利亚': '🇦🇺',
-    'TH': '🇹🇭', 'Thailand': '🇹🇭', '泰国': '🇹🇭',
-    'VN': '🇻🇳', 'Vietnam': '🇻🇳', '越南': '🇻🇳',
-    'ID': '🇮🇩', 'Indonesia': '🇮🇩', '印尼': '🇮🇩',
-    'MY': '🇲🇾', 'Malaysia': '🇲🇾', '马来西亚': '🇲🇾',
-    'PH': '🇵🇭', 'Philippines': '🇵🇭', '菲律宾': '🇵🇭',
-    'TR': '🇹🇷', 'Turkey': '🇹🇷', '土耳其': '🇹🇷',
-  };
-
-  if (regionMap[region]) return regionMap[region];
-  
-  // 尝试在字符串中查找 Emoji
-  const emojiMatch = region.match(/(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u);
-  if (emojiMatch) return emojiMatch[0];
-
-  return '🌍';
-};
-
-// 解析节点信息
-const parseNodeInfo = (node) => {
-  const result = {
-    name: node.name,
-    server: node.server || '',
-    port: node.port || '',
-    protocol: node.protocol,
-    region: node.region
-  };
-
-  // 如果后端已经返回了服务器和端口，直接使用，不再前端解析
-  if (result.server && result.port) {
-      return result;
-  }
-
-  try {
-    const url = new URL(node.url);
-    result.server = url.hostname || '';
-    result.port = url.port || '';
-
-    // 对于vmess协议，需要特殊处理
-    if (node.protocol === 'vmess') {
-      try {
-        const base64Part = node.url.substring('vmess://'.length);
-        const binaryString = atob(base64Part);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+        // 协议过滤
+        if (protocolFilter.value && protocolFilter.value !== 'all') {
+            result = result.filter((node) => node.protocol === protocolFilter.value);
         }
 
         // 地区过滤

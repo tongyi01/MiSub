@@ -3,8 +3,6 @@
  * 负责节点URL的解码、修复、重命名和过滤
  */
 
-import { normalizeTuicV5Url } from '../../../src/utils/tuic-url.js';
-
 /**
  * 修复节点URL编码问题（支持多种协议）
  * @param {string} nodeUrl
@@ -52,10 +50,6 @@ export function fixNodeUrlEncoding(nodeUrl, options = {}) {
     };
 
     let fixedUrl = nodeUrl;
-
-    if (/^tuic:\/\//i.test(fixedUrl)) {
-        return normalizeFragment(normalizeTuicV5Url(fixedUrl));
-    }
 
     if (fixedUrl.startsWith('vmess://')) {
         return fixedUrl;

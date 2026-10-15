@@ -210,33 +210,8 @@ function pruneInvalidMembers(model) {
 }
 
 function ensureDnsProxyGroup(model) {
-    if (model.groups.some(group => group.name === DNS_PROXY_GROUP)) return;
-    const proxyNames = model.proxies.map(proxy => proxy.name || proxy.tag).filter(Boolean);
-    const preferredNames = [
-        /^(?:🚀\s*)?节点选择$/i,
-        /^(?:🌍\s*)?总出口$/i,
-        /^(?:🚀\s*)?(?:proxy|default|global|main)$/i,
-        /节点选择|总出口|主.*选择|代理选择|proxy|default|global|main/i
-    ];
-    const primaryGroup = preferredNames
-        .map(pattern => model.groups.find(group =>
-            group.name !== DNS_PROXY_GROUP &&
-            !isAiGroupName(group.name) &&
-            pattern.test(String(group.name || ''))
-        ))
-        .find(Boolean);
-
-    if (primaryGroup) {
-        model.groups.push({
-            name: DNS_PROXY_GROUP,
-            type: 'select',
-            members: [primaryGroup.name],
-            filters: [],
-            options: {}
-        });
-        return;
-    }
-
+    if (model.groups.some((group) => group.name === DNS_PROXY_GROUP)) return;
+    const proxyNames = model.proxies.map((proxy) => proxy.name || proxy.tag).filter(Boolean);
     model.groups.push({
         name: DNS_PROXY_GROUP,
         type: 'url-test',
@@ -245,8 +220,8 @@ function ensureDnsProxyGroup(model) {
         options: {
             url: 'http://www.gstatic.com/generate_204',
             interval: 300,
-            tolerance: 50
-        }
+            tolerance: 50,
+        },
     });
 }
 
@@ -255,11 +230,6 @@ function isAiGroupName(name) {
     return /人工智能|智能\s*ai|(?:^|[^a-z])(ai|claude|openai|gemini|grok|mistral|deepseek|perplexity|copilot)(?=$|[^a-z])/i.test(
         value
     );
-}
-
-function hasExplicitAiPolicy(model) {
-    return model.groups.some(group => isAiGroupName(group.name)) ||
-        model.rules.some(rule => isAiGroupName(rule.policy));
 }
 
 function proxyOnlyMembers(members) {
@@ -381,9 +351,9 @@ export function applySmartModelOptimizations(model) {
         ensureDnsProxyGroup(model);
     }
 
-    // 只为模板明确声明的 AI 策略补全 fail-closed 分组和域名规则。
-    // 普通自定义模板保持用户原始策略，不再被强制注入 AI 分组。
-    if (hasExplicitAiPolicy(model)) {
+    // 3. AI 服务分组与分流规则注入：
+    // 仅在非纯自定义模板模式（启用内置分流）下才注入
+    if (!isCustomOrNone) {
         ensureAiPolicy(model);
     }
 

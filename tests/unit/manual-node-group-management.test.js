@@ -26,18 +26,17 @@ describe('手动节点分组管理', () => {
         manualNodes = useManualNodes(markDirty);
     });
 
-  it('调整分组顺序时同步重排节点并保留组内顺序', () => {
-    // 用户想把 HK 移到第一位
-    manualNodes.reorderGroups(['HK', 'USA', 'Japan']);
+    it('分组顺序默认按节点首次出现顺序推导', () => {
+        const groups = manualNodes.manualNodeGroups.value;
 
         // 节点顺序：USA, USA, Japan, Japan, HK, HK
         // 首次出现顺序：USA, Japan, HK
         expect(groups).toEqual(['USA', 'Japan', 'HK']);
     });
 
-    const nodeIds = dataStore.subscriptions.map(n => n.id);
-    expect(nodeIds).toEqual(['n5', 'n6', 'n1', 'n2', 'n3', 'n4']);
-  });
+    it('可以调整分组顺序（不影响节点顺序）', () => {
+        // 用户想把 HK 移到第一位
+        manualNodes.reorderGroups(['HK', 'USA', 'Japan']);
 
         const groups = manualNodes.manualNodeGroups.value;
         expect(groups).toEqual(['HK', 'USA', 'Japan']);
@@ -105,16 +104,38 @@ describe('手动节点分组管理', () => {
 
         manualNodes.renameGroup('USA', '');
 
-    const afterGroups = manualNodes.manualNodeGroups.value;
-    expect(afterGroups).toEqual(beforeGroups);
-  });
+        const afterGroups = manualNodes.manualNodeGroups.value;
+        expect(afterGroups).toEqual(beforeGroups);
+    });
 
-  it('批量启停只更新指定节点并保留现有顺序', () => {
-    manualNodes.batchSetNodesEnabled(['n1', 'n4'], false);
+    it('对子集排序时只替换可见节点顺序并保留隐藏节点和订阅', () => {
+        dataStore.subscriptions = [
+            { id: 'a1', url: 'ss://a1', name: 'A1', group: 'A', enabled: true },
+            { id: 'b1', url: 'ss://b1', name: 'B1', group: 'B', enabled: true },
+            { id: 'a2', url: 'ss://a2', name: 'A2', group: 'A', enabled: true },
+            {
+                id: 's1',
+                url: 'https://subscription.example/sub',
+                name: 'Remote sub',
+                enabled: true,
+            },
+        ];
 
-    expect(dataStore.subscriptions.map(node => node.id)).toEqual(['n1', 'n2', 'n3', 'n4', 'n5', 'n6']);
-    expect(dataStore.subscriptions.find(node => node.id === 'n1').enabled).toBe(false);
-    expect(dataStore.subscriptions.find(node => node.id === 'n4').enabled).toBe(false);
-    expect(dataStore.subscriptions.find(node => node.id === 'n2').enabled).toBe(true);
-  });
+        manualNodes.reorderManualNodes([
+            { id: 'a2', url: 'ss://a2', name: 'A2', group: 'A', enabled: true },
+            { id: 'a1', url: 'ss://a1', name: 'A1', group: 'A', enabled: true },
+        ]);
+
+        expect(dataStore.subscriptions.map((node) => node.id)).toEqual(['a2', 'b1', 'a1', 's1']);
+    });
+
+    it('重命名为相同名称应被忽略', () => {
+        manualNodes.reorderGroups(['HK', 'USA', 'Japan']);
+        const beforeGroups = [...manualNodes.manualNodeGroups.value];
+
+        manualNodes.renameGroup('USA', 'USA');
+
+        const afterGroups = manualNodes.manualNodeGroups.value;
+        expect(afterGroups).toEqual(beforeGroups);
+    });
 });

@@ -6,7 +6,6 @@
 // [修复] 使用正确的相对路径引用 modules/utils 下的 geo-utils
 import { extractNodeRegion, getRegionEmoji } from '../modules/utils/geo-utils.js';
 import { extractNodeMetadata } from '../modules/utils/metadata-extractor.js';
-import { normalizeTuicV5Url } from '../../src/utils/tuic-url.js';
 
 /**
  * 节点协议正则表达式
@@ -332,13 +331,6 @@ export function fixNodeUrlEncoding(nodeUrl, options = {}) {
             return url;
         }
     };
-
-    // v2rayN may encode the TUIC v5 UUID/password delimiter as %3A. Keep
-    // password escapes intact while restoring the separator Shadowrocket
-    // requires. Clash/sing-box parsers also accept this canonical form.
-    if (/^tuic:\/\//i.test(nodeUrl)) {
-        return normalizeFragment(normalizeTuicV5Url(nodeUrl));
-    }
 
     // 1. 针对 Hysteria2/Hy2 的用户名与参数进行解码
     if (nodeUrl.startsWith('hysteria2://') || nodeUrl.startsWith('hy2://')) {

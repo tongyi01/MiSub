@@ -1,5 +1,3 @@
-import { normalizeTuicV5Url } from '../../utils/tuic-url.js';
-
 const isDev = import.meta.env.DEV;
 
 const normalizeBase64 = (input) => {
@@ -39,46 +37,6 @@ const buildSortedQuery = (params) => {
 };
 
 const normalizeUrlForDedup = (url) => {
-  try {
-    const raw = normalizeTuicV5Url(String(url || '').trim());
-    if (!raw) return '';
-
-    if (raw.startsWith('vmess://')) {
-      const payload = raw.substring('vmess://'.length);
-      const decoded = safeBase64Decode(payload);
-      if (!decoded) return raw;
-      const nodeConfig = JSON.parse(decoded);
-      delete nodeConfig.ps;
-      delete nodeConfig.remark;
-      delete nodeConfig.remarks;
-      delete nodeConfig.name;
-      const sorted = Object.keys(nodeConfig).sort().reduce((obj, key) => {
-        obj[key] = nodeConfig[key];
-        return obj;
-      }, {});
-      return `vmess://${JSON.stringify(sorted)}`;
-    }
-
-    if (raw.startsWith('ssr://')) {
-      const payload = raw.substring('ssr://'.length);
-      const decoded = safeBase64Decode(payload);
-      if (!decoded) return raw.split('#')[0];
-      const parts = decoded.split('/?');
-      const base = parts[0] || decoded;
-      const query = parts[1] || '';
-      const params = new URLSearchParams(query);
-      params.delete('remarks');
-      params.delete('remark');
-      params.delete('group');
-      params.delete('name');
-      const normalizedQuery = buildSortedQuery(params).replace('?', '');
-      return normalizedQuery ? `ssr://${base}/?${normalizedQuery}` : `ssr://${base}`;
-    }
-
-    const hashIndex = raw.indexOf('#');
-    const withoutHash = hashIndex !== -1 ? raw.substring(0, hashIndex) : raw;
-
-    let parsed;
     try {
         const raw = String(url || '').trim();
         if (!raw) return '';
