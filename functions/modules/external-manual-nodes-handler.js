@@ -12,6 +12,7 @@ import {
 } from './external-api-utils.js';
 import { detectNodeProtocol, isManualNode, toExternalManualNode } from './external-api-mappers.js';
 import { parseNodeList } from './utils/node-parser.js';
+import { normalizeTuicV5Url } from '../../src/utils/tuic-url.js';
 
 function nowIso() {
   return new Date().toISOString();
@@ -118,7 +119,7 @@ export async function handleExternalManualNodesRequest(request, env, selector = 
     const item = {
       id: generateId('node'),
       name: String(payload.name).trim(),
-      url: String(payload.url).trim(),
+      url: normalizeTuicV5Url(String(payload.url).trim()),
       enabled: payload.enabled !== false,
       group: String(payload.group || '').trim(),
       tags: normalizeStringArray(payload.tags),
@@ -138,7 +139,7 @@ export async function handleExternalManualNodesRequest(request, env, selector = 
     const updated = {
       ...current,
       ...(payload.name !== undefined ? { name: String(payload.name || '').trim() } : {}),
-      ...(payload.url !== undefined ? { url: String(payload.url || '').trim() } : {}),
+      ...(payload.url !== undefined ? { url: normalizeTuicV5Url(String(payload.url || '').trim()) } : {}),
       ...(payload.enabled !== undefined ? { enabled: payload.enabled !== false } : {}),
       ...(payload.group !== undefined ? { group: String(payload.group || '').trim() } : {}),
       ...(payload.tags !== undefined ? { tags: normalizeStringArray(payload.tags) } : {}),

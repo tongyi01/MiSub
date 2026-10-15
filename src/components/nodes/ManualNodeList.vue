@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { extractHostAndPort } from '../../lib/utils.js';
 import { useToastStore } from '../../stores/toast.js';
 import { useI18n } from '@/i18n/index.js';
+import { normalizeTuicV5Url } from '../../utils/tuic-url.js';
 
 const props = defineProps({
   node: {
@@ -72,7 +73,7 @@ const protocolStyle = computed(() => {
 
 const copyToClipboard = async (text) => {
   try {
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(normalizeTuicV5Url(text));
     showToast(t('notices.copied'), 'success');
   } catch {
     showToast(t('notices.copyFailed'), 'error');

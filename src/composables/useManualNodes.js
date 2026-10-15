@@ -11,6 +11,7 @@ import { buildDedupPlan as buildDedupPlanCore } from './manual-nodes/dedup.js';
 import { buildAutoSortedSubscriptions } from './manual-nodes/sorting.js';
 import { collectManualNodeGroups, buildGroupedManualNodes, normalizeManualNodeGroupName } from './manual-nodes/groups.js';
 import { t } from '../i18n/index.js';
+import { normalizeTuicV5Url } from '../utils/tuic-url.js';
 
 export function useManualNodes(markDirty) {
   const { showToast } = useToastStore();
@@ -126,6 +127,7 @@ export function useManualNodes(markDirty) {
   function addNode(node) {
     const normalizedNode = {
       ...node,
+      url: normalizeTuicV5Url(node.url),
       group: normalizeManualNodeGroupName(node.group)
     };
     if (!normalizedNode.name) {
@@ -141,6 +143,7 @@ export function useManualNodes(markDirty) {
   function updateNode(updatedNode) {
     const normalizedNode = {
       ...updatedNode,
+      url: normalizeTuicV5Url(updatedNode.url),
       group: normalizeManualNodeGroupName(updatedNode.group)
     };
     // Update in shared store
@@ -181,6 +184,7 @@ export function useManualNodes(markDirty) {
     const normalizedGroupName = normalizeManualNodeGroupName(groupName);
     const normalizedNodes = nodes.map(node => ({
       ...node,
+      url: normalizeTuicV5Url(node.url),
       group: normalizeManualNodeGroupName(normalizedGroupName || node.group)
     }));
     preserveGroupOrderForAddedNodes(normalizedNodes);

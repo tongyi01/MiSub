@@ -75,4 +75,18 @@ ss://new@server5.com:10000`;
     // 应该只添加 2 个新节点（NewSurge 和 server5）
     expect(dataStore.subscriptions.length).toBe(initialCount + 2);
   });
+
+  it('应把 v2rayN 编码的 TUIC 分隔符规范化后再去重', () => {
+    const uuid = '00000000-0000-4000-8000-000000000001';
+    dataStore.subscriptions.push({
+      id: 'tuic-existing',
+      url: `tuic://${uuid}:secret@example.com:443#Existing`,
+      name: 'Existing TUIC',
+      enabled: true
+    });
+
+    bulkImport.handleBulkImport(`tuic://${uuid}%3Asecret@example.com:443#Existing`, '');
+
+    expect(dataStore.subscriptions.filter(item => item.url?.startsWith(`tuic://${uuid}`))).toHaveLength(1);
+  });
 });
