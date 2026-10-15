@@ -16,6 +16,7 @@ import {
     normalizeManualNodeGroupName,
 } from './manual-nodes/groups.js';
 import { t } from '../i18n/index.js';
+import { normalizeTuicV5Url } from '../utils/tuic-url.js';
 
 export function useManualNodes(markDirty) {
     const { showToast } = useToastStore();
@@ -101,6 +102,26 @@ export function useManualNodes(markDirty) {
         }
     }
 
+    function batchSetNodesEnabled(nodeIds, enabled) {
+        const idsSet = new Set(nodeIds || []);
+        let changedCount = 0;
+        const nextItems = (allSubscriptions.value || []).map((item) => {
+            if (!idsSet.has(item.id) || item.enabled === enabled) return item;
+            changedCount += 1;
+            return { ...item, enabled };
+        });
+        if (changedCount > 0) {
+            dataStore.overwriteSubscriptions(nextItems);
+            markDirty();
+            showToast(
+                t(enabled ? 'manualNodes.enabledCount' : 'manualNodes.disabledCount', {
+                    count: changedCount,
+                }),
+                'success'
+            );
+        }
+    }
+
     function batchDeleteNodes(nodeIds) {
         if (!nodeIds || nodeIds.length === 0) return;
         // Confirmation moved to UI layer
@@ -123,11 +144,13 @@ export function useManualNodes(markDirty) {
     function addNode(node) {
         const normalizedNode = {
             ...node,
+            url: normalizeTuicV5Url(node.url),
             group: normalizeManualNodeGroupName(node.group),
         };
         if (!normalizedNode.name) {
             normalizedNode.name = extractNodeName(normalizedNode.url);
         }
+        preserveGroupOrderForAddedNodes([normalizedNode]);
         // Add to shared store
         dataStore.addSubscription(normalizedNode);
         manualNodesCurrentPage.value = 1;
@@ -137,6 +160,7 @@ export function useManualNodes(markDirty) {
     function updateNode(updatedNode) {
         const normalizedNode = {
             ...updatedNode,
+            url: normalizeTuicV5Url(updatedNode.url),
             group: normalizeManualNodeGroupName(updatedNode.group),
         };
         // Update in shared store
@@ -175,11 +199,15 @@ export function useManualNodes(markDirty) {
 
     function addNodesFromBulk(nodes, groupName = '') {
         const normalizedGroupName = normalizeManualNodeGroupName(groupName);
+        const normalizedNodes = nodes.map((node) => ({
+            ...node,
+            url: normalizeTuicV5Url(node.url),
+            group: normalizeManualNodeGroupName(normalizedGroupName || node.group),
+        }));
+        preserveGroupOrderForAddedNodes(normalizedNodes);
         // Reverse insert so they appear in correct order when unshifted
-        for (let i = nodes.length - 1; i >= 0; i--) {
-            const node = { ...nodes[i] };
-            node.group = normalizeManualNodeGroupName(normalizedGroupName || node.group);
-            dataStore.addSubscription(node);
+        for (let i = normalizedNodes.length - 1; i >= 0; i--) {
+            dataStore.addSubscription(normalizedNodes[i]);
         }
         markDirty();
     }
@@ -206,7 +234,7 @@ export function useManualNodes(markDirty) {
         applyDedupPlan(plan);
     }
 
-    function autoSortNodes() {
+    function autoSortNodes(mode = 'region') {
         // Sort logic requires replacing the list.
         // Since manual nodes are part of a larger list (subscriptions), we need to extract them, sort them,
         // and then potentially re-insert them or just update their order relative to themselves?
@@ -219,7 +247,8 @@ export function useManualNodes(markDirty) {
 
         const mergedList = buildAutoSortedSubscriptions(
             allSubscriptions.value || [],
-            manualNodes.value
+            manualNodes.value,
+            { mode, groupOrder: manualNodeGroups.value }
         );
 
         // Update store with new order: Manual Nodes first, then Subscriptions
@@ -306,6 +335,17 @@ export function useManualNodes(markDirty) {
         return collectManualNodeGroups(manualNodes.value, customOrder);
     });
 
+    function preserveGroupOrderForAddedNodes(nodes) {
+        const currentOrder = manualNodeGroups.value;
+        const addedGroups = (nodes || [])
+            .map((node) => normalizeManualNodeGroupName(node.group))
+            .filter(Boolean);
+        const nextOrder = Array.from(new Set([...currentOrder, ...addedGroups]));
+        if (nextOrder.length > 0) {
+            settingsStore.updateConfig({ manualNodeGroupOrder: nextOrder });
+        }
+    }
+
     const groupedManualNodes = computed(() => {
         return buildGroupedManualNodes(filteredManualNodes.value, manualNodeGroups.value);
     });
@@ -359,8 +399,17 @@ export function useManualNodes(markDirty) {
     }
 
     function reorderGroups(newOrder) {
-        // 保存用户自定义的分组顺序
-        settingsStore.updateConfig({ manualNodeGroupOrder: newOrder });
+        const normalizedOrder = Array.from(
+            new Set((newOrder || []).map(normalizeManualNodeGroupName).filter(Boolean))
+        );
+        settingsStore.updateConfig({ manualNodeGroupOrder: normalizedOrder });
+        dataStore.overwriteSubscriptions(
+            buildAutoSortedSubscriptions(allSubscriptions.value || [], manualNodes.value, {
+                mode: 'group-order',
+                groupOrder: normalizedOrder,
+            })
+        );
+        manualNodesCurrentPage.value = 1;
         markDirty();
     }
 
@@ -400,9 +449,9 @@ export function useManualNodes(markDirty) {
         }
     }
 
-    // 批量并发测试所有开启的手动节点
-    async function pingAllNodes() {
-        const nodesToTest = enabledManualNodes.value.map((n) => n.id);
+    async function pingNodeIds(nodeIds) {
+        const validIds = new Set(manualNodes.value.map((node) => node.id));
+        const nodesToTest = Array.from(new Set(nodeIds || [])).filter((id) => validIds.has(id));
         if (nodesToTest.length === 0) return;
 
         showToast(t('manualNodes.pingStarted', { count: nodesToTest.length }), 'info');
@@ -423,6 +472,11 @@ export function useManualNodes(markDirty) {
 
         await Promise.allSettled(workers);
         showToast(t('manualNodes.pingCompleted', { count: nodesToTest.length }), 'success');
+    }
+
+    // 批量并发测试所有开启的手动节点
+    async function pingAllNodes() {
+        return pingNodeIds(enabledManualNodes.value.map((n) => n.id));
     }
 
     return {
@@ -452,11 +506,13 @@ export function useManualNodes(markDirty) {
         reorderGroups, // New: 调整分组顺序
         setGroupFilter, // New
         batchUpdateGroup, // New
+        batchSetNodesEnabled,
         batchDeleteNodes, // New
         manualNodesPerPage, // Added
         pingResults,
         pingingNodes,
         pingNodeId,
+        pingNodeIds,
         pingAllNodes,
     };
 }

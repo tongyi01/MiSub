@@ -1,3 +1,5 @@
+import { normalizeTuicV5Url } from '../../utils/tuic-url.js';
+
 const isDev = import.meta.env.DEV;
 
 const normalizeBase64 = (input) => {
@@ -38,7 +40,7 @@ const buildSortedQuery = (params) => {
 
 const normalizeUrlForDedup = (url) => {
     try {
-        const raw = String(url || '').trim();
+        const raw = normalizeTuicV5Url(String(url || '').trim());
         if (!raw) return '';
 
         if (raw.startsWith('vmess://')) {

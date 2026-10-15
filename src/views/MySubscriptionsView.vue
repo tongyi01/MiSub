@@ -46,6 +46,8 @@
         handleSaveProfile,
         handleDeleteProfile,
         handleDeleteAllProfiles,
+        autoSortProfiles,
+        syncProfiles,
         filteredProfiles,
         searchQuery: profileSearchQuery,
         profilesCurrentPage,
@@ -56,7 +58,8 @@
 
     // For ProfileModal need access to all subscriptions and nodes
     const { subscriptions } = storeToRefs(dataStore);
-    const { manualNodes } = useManualNodes(markDirty);
+    const { manualNodes, manualNodeGroups } = useManualNodes(markDirty);
+    const showProfileSyncModal = ref(false);
 
     const handleProfileReorder = (profileId, direction) => {
         const fromIndex = profiles.value.findIndex(
@@ -94,6 +97,9 @@
 
     const ProfileModal = defineAsyncComponent(
         () => import('../components/modals/ProfileModal.vue')
+    );
+    const ProfileSyncModal = defineAsyncComponent(
+        () => import('../components/modals/ProfileSyncModal.vue')
     );
     const LogModal = defineAsyncComponent(() => import('../components/modals/LogModal.vue'));
     const CopyLinkModal = defineAsyncComponent(
@@ -168,6 +174,8 @@
                 @preview="handlePreviewProfile"
                 @reorder="handleProfileReorder"
                 @toggle-sort="toggleProfileSorting"
+                @auto-sort="autoSortProfiles"
+                @sync="showProfileSyncModal = true"
                 @change-page="changeProfilesPage"
                 @viewLogs="handleViewLogs"
                 @qrcode="handleQRCode"
@@ -190,6 +198,16 @@
             :all-manual-nodes="manualNodes"
             @save="handleSaveProfile"
             size="6xl"
+        />
+
+        <ProfileSyncModal
+            v-if="showProfileSyncModal"
+            v-model:show="showProfileSyncModal"
+            :profiles="profiles"
+            :subscriptions="subscriptions.filter((item) => item?.url && /^https?:\/\//.test(item.url))"
+            :manual-nodes="manualNodes"
+            :groups="manualNodeGroups"
+            @apply="syncProfiles"
         />
 
         <Modal v-model:show="showDeleteProfilesModal" @confirm="handleDeleteAllProfiles">

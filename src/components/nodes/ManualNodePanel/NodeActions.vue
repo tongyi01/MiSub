@@ -257,14 +257,26 @@
                         >
                             {{ t('actions.manageGroups') }}
                         </button>
+                        <div class="px-4 pb-1 pt-2 text-xs font-medium text-gray-400 dark:text-gray-500">
+                            {{ t('actions.autoSort') }}
+                        </div>
                         <button
-                            @click="
-                                emit('auto-sort');
-                                close();
-                            "
+                            @click="emit('auto-sort', 'group-order'); close()"
                             class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                         >
-                            {{ t('actions.autoSort') }}
+                            {{ t('actions.sortByGroupOrder') }}
+                        </button>
+                        <button
+                            @click="emit('auto-sort', 'region'); close()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                            {{ t('actions.sortByRegion') }}
+                        </button>
+                        <button
+                            @click="emit('auto-sort', 'name'); close()"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                            {{ t('actions.sortByName') }}
                         </button>
                         <button
                             @click="

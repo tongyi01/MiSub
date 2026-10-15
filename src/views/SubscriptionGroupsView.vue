@@ -47,6 +47,7 @@
         handleUpdateNodeCount,
         batchUpdateAllSubscriptions,
         reorderSubscriptions,
+        autoSortSubscriptions,
     } = useSubscriptions(markDirty);
 
     const { addNodesFromBulk } = useManualNodes(markDirty);
@@ -271,6 +272,7 @@
             @delete-all="showDeleteSubsModal = true"
             @preview="handlePreviewSubscription"
             @reorder="reorderSubscriptions"
+            @auto-sort="autoSortSubscriptions"
             @import="openBulkImportModal"
             @qrcode="handleQRCode"
             @update-search="subscriptionSearchQuery = $event"

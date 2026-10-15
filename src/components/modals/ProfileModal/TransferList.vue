@@ -36,7 +36,12 @@ const orderedSelectedItems = computed({
       return item ? { ...item, __profileEntry: entry } : null;
     })
     .filter(Boolean),
-  set: items => emit('update:selectedIds', items.map(item => item.__profileEntry))
+  set: items => {
+    const reorderedVisibleEntries = items.map(item => item.__profileEntry);
+    emit('update:selectedIds', props.selectedIds.map(entry => (
+      itemMap.value.has(entryId(entry)) ? reorderedVisibleEntries.shift() : entry
+    )));
+  }
 });
 const targetFilterSet = computed(() => props.targetFilteredIds ? new Set(props.targetFilteredIds) : null);
 const displayedSelectedItems = computed({

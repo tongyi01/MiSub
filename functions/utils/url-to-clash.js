@@ -872,8 +872,14 @@ function parseTuicUrl(url) {
             }
         };
 
-        const uuid = safeDecode(rawUuid);
-        const password = safeDecode(rawPassword);
+        let uuid = safeDecode(rawUuid);
+        let password = safeDecode(rawPassword);
+        if (separatorIndex === -1) {
+            const combined = uuid.match(
+                /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([\s\S]+)$/i
+            );
+            if (combined) [, uuid, password] = combined;
+        }
 
         let serverPart = body.substring(atIndex + 1);
         const queryIndex = serverPart.indexOf('?');

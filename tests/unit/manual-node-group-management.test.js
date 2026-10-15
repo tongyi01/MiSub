@@ -34,16 +34,16 @@ describe('手动节点分组管理', () => {
         expect(groups).toEqual(['USA', 'Japan', 'HK']);
     });
 
-    it('可以调整分组顺序（不影响节点顺序）', () => {
+    it('调整分组顺序时节点跟随分组顺序', () => {
         // 用户想把 HK 移到第一位
         manualNodes.reorderGroups(['HK', 'USA', 'Japan']);
 
         const groups = manualNodes.manualNodeGroups.value;
         expect(groups).toEqual(['HK', 'USA', 'Japan']);
 
-        // 节点顺序不变
+        // 节点按新的分组顺序同步重排
         const nodeGroups = dataStore.subscriptions.map((n) => n.group);
-        expect(nodeGroups).toEqual(['USA', 'USA', 'Japan', 'Japan', 'HK', 'HK']);
+        expect(nodeGroups).toEqual(['HK', 'HK', 'USA', 'USA', 'Japan', 'Japan']);
     });
 
     it('调整分组顺序后，新增分组自动追加到末尾', () => {

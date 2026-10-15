@@ -4,11 +4,13 @@
     import ProfileForm from './ProfileModal/ProfileForm.vue';
     import SubscriptionSelector from './ProfileModal/SubscriptionSelector.vue';
     import NodeSelector from './ProfileModal/NodeSelector.vue';
+    import SyncSettingsPanel from './ProfileModal/SyncSettingsPanel.vue';
     import { useManualNodes } from '../../composables/useManualNodes.js';
     import { useDataStore } from '../../stores/useDataStore.js';
     import { useSettingsStore } from '../../stores/settings.js';
     import { useI18n } from '@/i18n/index.js';
     import { DEFAULT_GROUP_KEY } from '@/composables/manual-nodes/groups.js';
+    import { normalizeProfileSyncSettings } from '../../utils/profile-sync.js';
 
     const { t } = useI18n();
     const dataStore = useDataStore();
@@ -30,6 +32,7 @@
     const nodeSearchTerm = ref('');
     const activeManualNodeGroupFilter = ref(null);
     const showAdvanced = ref(false);
+    const activeTab = ref('basic');
     const uiText = computed(() => ({
         prefixTitle: t('profileModal.nodeNameVisibility'),
         manualPrefixLabel: t('profileModal.manualPrefixText'),
@@ -175,6 +178,7 @@
     watch(
         () => props.profile,
         (newProfile) => {
+            activeTab.value = 'basic';
             if (newProfile) {
                 const profileCopy = JSON.parse(JSON.stringify(newProfile));
                 // Format date for input[type=date]
@@ -238,6 +242,7 @@
                 profileCopy.operators = Array.isArray(profileCopy.operators)
                     ? profileCopy.operators
                     : [];
+                profileCopy.syncSettings = normalizeProfileSyncSettings(profileCopy.syncSettings);
 
                 localProfile.value = profileCopy;
             } else {
@@ -257,6 +262,7 @@
                         prependGroupName: null,
                     },
                     operators: [],
+                    syncSettings: normalizeProfileSyncSettings(),
                 };
             }
         },
@@ -279,29 +285,6 @@
         }
         // 顺序已由用户通过拖拽确定，无需额外排序
         emit('save', profileToSave);
-    };
-
-    const toggleSelection = (listName, id) => {
-        const list = localProfile.value[listName];
-        const index = list.indexOf(id);
-        if (index > -1) {
-            list.splice(index, 1);
-        } else {
-            list.push(id);
-        }
-    };
-
-    const handleSelectAll = (listName, sourceArray) => {
-        const currentSelection = new Set(localProfile.value[listName]);
-        sourceArray.forEach((item) => currentSelection.add(item.id));
-        localProfile.value[listName] = Array.from(currentSelection);
-    };
-
-    const handleDeselectAll = (listName, sourceArray) => {
-        const sourceIds = sourceArray.map((item) => item.id);
-        localProfile.value[listName] = localProfile.value[listName].filter(
-            (id) => !sourceIds.includes(id)
-        );
     };
 
     // 处理拖拽排序后的 ID 顺序更新
@@ -347,8 +330,34 @@
             </div>
         </template>
         <template #body>
-            <div v-if="localProfile" class="space-y-6">
+            <div v-if="localProfile" class="space-y-5">
+                <nav
+                    class="flex min-w-0 gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1 dark:bg-white/[0.05]"
+                    :aria-label="t('profileModal.editorTabs')"
+                >
+                    <button
+                        v-for="tab in [
+                            { id: 'basic', label: t('profileModal.basicTab') },
+                            { id: 'subscriptions', label: t('profileModal.subscriptionsTab'), count: localProfile.subscriptions?.length || 0 },
+                            { id: 'nodes', label: t('profileModal.nodesTab'), count: localProfile.manualNodes?.length || 0 },
+                            { id: 'sync', label: t('profileModal.syncTab') },
+                        ]"
+                        :key="tab.id"
+                        type="button"
+                        class="min-h-10 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-semibold transition focus:outline-2 focus:outline-offset-1 focus:outline-indigo-500"
+                        :class="activeTab === tab.id ? 'bg-white text-indigo-700 shadow-sm dark:bg-gray-800 dark:text-indigo-300' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
+                        @click="activeTab = tab.id"
+                    >
+                        {{ tab.label }}
+                        <span
+                            v-if="tab.count !== undefined"
+                            class="ml-1.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] tabular-nums dark:bg-white/10"
+                        >{{ tab.count }}</span>
+                    </button>
+                </nav>
+
                 <ProfileForm
+                    v-show="activeTab === 'basic'"
                     :local-profile="localProfile"
                     :show-advanced="showAdvanced"
                     :ui-text="uiText"
@@ -358,7 +367,15 @@
                     @toggle-advanced="showAdvanced = !showAdvanced"
                 />
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div v-show="activeTab === 'subscriptions'" class="space-y-3">
+                    <div>
+                        <h4 class="font-semibold text-gray-900 dark:text-white">
+                            {{ t('profileModal.subscriptionsWorkbenchTitle') }}
+                        </h4>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            {{ t('profileModal.transferHint') }}
+                        </p>
+                    </div>
                     <SubscriptionSelector
                         :subscriptions="selectableSubscriptions"
                         :filtered-subscriptions="filteredSubscriptions"
@@ -366,11 +383,18 @@
                         :selected-ids="localProfile.subscriptions || []"
                         @update:search-term="subscriptionSearchTerm = $event"
                         @update:selected-ids="updateSelectedIds('subscriptions', $event)"
-                        @toggle-selection="toggleSelection('subscriptions', $event)"
-                        @select-all="handleSelectAll('subscriptions', filteredSubscriptions)"
-                        @deselect-all="handleDeselectAll('subscriptions', filteredSubscriptions)"
                     />
+                </div>
 
+                <div v-show="activeTab === 'nodes'" class="space-y-3">
+                    <div>
+                        <h4 class="font-semibold text-gray-900 dark:text-white">
+                            {{ t('profileModal.nodesWorkbenchTitle') }}
+                        </h4>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            {{ t('profileModal.transferHint') }}
+                        </p>
+                    </div>
                     <NodeSelector
                         :nodes="allManualNodes"
                         :filtered-nodes="filteredManualNodes"
@@ -381,11 +405,14 @@
                         @update:search-term="nodeSearchTerm = $event"
                         @update:group-filter="activeManualNodeGroupFilter = $event"
                         @update:selected-ids="updateSelectedIds('manualNodes', $event)"
-                        @toggle-selection="toggleSelection('manualNodes', $event)"
-                        @select-all="handleSelectAll('manualNodes', filteredManualNodes)"
-                        @deselect-all="handleDeselectAll('manualNodes', filteredManualNodes)"
                     />
                 </div>
+
+                <SyncSettingsPanel
+                    v-show="activeTab === 'sync'"
+                    v-model="localProfile.syncSettings"
+                    :groups="manualNodeGroups"
+                />
             </div>
         </template>
     </Modal>

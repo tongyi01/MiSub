@@ -60,11 +60,13 @@
         activeGroupFilter,
         setGroupFilter,
         batchUpdateGroup,
+        batchSetNodesEnabled,
         batchDeleteNodes,
         manualNodesPerPage,
         pingResults,
         pingingNodes,
         pingNodeId,
+        pingNodeIds,
         pingAllNodes,
         sortNodesByLatency,
     } = useManualNodes(markDirty);
@@ -100,9 +102,15 @@
         showDeleteNodesModal.value = false;
     };
 
-    const handleAutoSortNodes = () => {
-        autoSortNodes();
-        showToast(t('manualNodes.sortedByRegion'), 'success');
+    const handleAutoSortNodes = (mode = 'region') => {
+        autoSortNodes(mode);
+        const messageKey =
+            mode === 'group-order'
+                ? 'manualNodes.sortedByGroupOrder'
+                : mode === 'name'
+                  ? 'manualNodes.sortedByName'
+                  : 'manualNodes.sortedByRegion';
+        showToast(t(messageKey), 'success');
     };
 
     const handleSortByLatency = () => {
@@ -208,6 +216,8 @@
             @set-group-filter="setGroupFilter"
             @batch-update-group="(ids, group) => batchUpdateGroup(ids, group)"
             @batch-delete-nodes="handleBatchDeleteRequest"
+            @batch-set-enabled="batchSetNodesEnabled"
+            @ping-selected="pingNodeIds"
             @open-batch-group-modal="handleOpenBatchGroupModal"
             @manage-groups="handleOpenGroupManagement"
             :ping-results="pingResults"

@@ -182,7 +182,7 @@ MATCH,节点选择
         expect(autoSelectGroup.proxies).not.toContain('DIRECT');
     });
 
-    it('adds fail-closed AI service groups without changing a normal Main group', () => {
+    it('does not inject AI service groups when the template has no AI policy', () => {
         const rendered = renderClashFromIniTemplate(
             `
 [Proxy Group]
@@ -208,12 +208,11 @@ MATCH,Main
         const aiGroups = parsed['proxy-groups'].filter((group) =>
             String(group.name).startsWith('🤖')
         );
-        expect(aiGroups.length).toBeGreaterThan(3);
-        expect(aiGroups.every((group) => !group.proxies.includes('DIRECT'))).toBe(true);
+        expect(aiGroups).toEqual([]);
         expect(parsed['proxy-groups'].find((group) => group.name === 'Main').proxies).toContain(
             'DIRECT'
         );
-        expect(parsed.rules).toContain('DOMAIN-SUFFIX,anthropic.com,🤖 Claude');
+        expect(parsed.rules).not.toContain('DOMAIN-SUFFIX,anthropic.com,🤖 Claude');
     });
 
     it('should keep Clash template relay-like groups as plain select without dialer-proxy', () => {

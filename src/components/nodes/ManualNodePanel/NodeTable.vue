@@ -1,11 +1,12 @@
 <script setup>
-    import { computed } from 'vue';
+    import { computed, ref } from 'vue';
     import draggable from 'vuedraggable';
     import ManualNodeCard from '../ManualNodeCard.vue';
     import ManualNodeList from '../ManualNodeList.vue';
     import PanelPagination from '@/components/shared/PanelPagination.vue';
     import EmptyState from '@/components/ui/EmptyState.vue';
     import { useI18n } from '@/i18n/index.js';
+    import { moveSelectedAsBlock } from '@/utils/manual-node-bulk-order.js';
 
     const { t } = useI18n();
 
@@ -41,10 +42,33 @@
         'ping',
     ]);
 
+    const dragOriginalItems = ref([]);
+    const draggedNodeId = ref(null);
     const draggableModel = computed({
         get: () => props.draggableManualNodes,
-        set: (val) => emit('update:draggableManualNodes', val),
+        set: (val) =>
+            emit(
+                'update:draggableManualNodes',
+                moveSelectedAsBlock(
+                    dragOriginalItems.value,
+                    val,
+                    props.selectedNodeIds,
+                    draggedNodeId.value
+                )
+            ),
     });
+    const canDrag = computed(() => props.isSorting || props.isSelectionMode);
+
+    function handleDragStart(event) {
+        dragOriginalItems.value = [...props.draggableManualNodes];
+        draggedNodeId.value = event?.item?.dataset?.nodeId || null;
+    }
+
+    function handleDragEnd() {
+        emit('sort-end');
+        dragOriginalItems.value = [];
+        draggedNodeId.value = null;
+    }
 
     const displayPage = computed(() => (props.localSearchTerm ? props.searchPage : props.basePage));
     const displayTotalPages = computed(() =>
@@ -71,7 +95,7 @@
             {{ t('manualNodes.noSearchResult', { keyword: localSearchTerm }) }}
         </div>
 
-        <div v-if="isSorting">
+        <div v-if="canDrag">
             <!-- 排序模式保持原有扁平列表，方便跨组排序 -->
             <div v-if="viewMode === 'card'">
                 <draggable
@@ -85,10 +109,11 @@
                     v-model="draggableModel"
                     item-key="id"
                     animation="300"
-                    @end="emit('sort-end')"
+                    @start="handleDragStart"
+                    @end="handleDragEnd"
                 >
                     <template #item="{ element: node }">
-                        <div class="cursor-move">
+                        <div class="cursor-move" :data-node-id="node.id">
                             <ManualNodeCard
                                 :node="node"
                                 :is-selection-mode="isSelectionMode"
@@ -112,19 +137,23 @@
                     v-model="draggableModel"
                     item-key="id"
                     animation="300"
-                    @end="emit('sort-end')"
+                    @start="handleDragStart"
+                    @end="handleDragEnd"
                 >
                     <template #item="{ element: node, index }">
-                        <div class="cursor-move">
+                        <div class="cursor-move" :data-node-id="node.id">
                             <ManualNodeList
                                 :node="node"
                                 :index="index + 1"
+                                :is-selection-mode="isSelectionMode"
+                                :is-selected="selectedNodeIds.has(node.id)"
                                 class="list-item-animation"
                                 :style="{ '--delay-index': Math.min(index, 20) }"
                                 :ping-result="pingResults[node.id]"
                                 :is-pinging="pingingNodes.has(node.id)"
                                 @edit="emit('edit', node.id)"
                                 @delete="emit('delete', node.id)"
+                                @toggle-select="emit('toggle-select', node.id)"
                                 @filter-group="emit('set-group-filter', $event)"
                                 @ping="emit('ping', node.id)"
                             />

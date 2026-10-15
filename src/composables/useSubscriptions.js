@@ -7,6 +7,7 @@ import { fetchNodeCount, batchUpdateNodes } from '../lib/api.js';
 import { handleError } from '../utils/errorHandler.js';
 import { TIMING } from '../constants/timing.js';
 import { t } from '../i18n/index.js';
+import { sortCollection } from '../utils/collection-sorting.js';
 import { getAirportIdentityKey } from '../utils/airport-identity.js';
 
 const isDev = import.meta.env.DEV;
@@ -528,6 +529,18 @@ export function useSubscriptions(markDirty) {
         markDirty();
     }
 
+    function autoSortSubscriptions(mode = 'name') {
+        const currentManualNodes = (allSubscriptions.value || []).filter(
+            (item) => !item.url || !/^https?:\/\//.test(item.url)
+        );
+        dataStore.overwriteSubscriptions([
+            ...currentManualNodes,
+            ...sortCollection(subscriptions.value, mode),
+        ]);
+        subsCurrentPage.value = 1;
+        markDirty();
+    }
+
     return {
         subscriptions,
         searchQuery,
@@ -553,5 +566,6 @@ export function useSubscriptions(markDirty) {
         stopAutoUpdate,
         restartAutoUpdate,
         reorderSubscriptions,
+        autoSortSubscriptions,
     };
 }

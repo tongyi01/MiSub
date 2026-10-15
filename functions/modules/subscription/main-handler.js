@@ -38,6 +38,7 @@ import {
     buildTransformTemplateContext,
     renderTransformTemplate,
 } from './transform-template-renderer.js';
+import { applyProfileSync } from '../../../src/utils/profile-sync.js';
 import { groupNodeLinesByRegion } from './region-groups.js';
 import { groupNodeLinesByProtocol } from './protocol-groups.js';
 import { shouldApplyExternalTemplateForTarget } from './template-compatibility.js';
@@ -628,8 +629,25 @@ export async function handleMisubRequest(context) {
         currentProfile = allProfiles.find(
             (p) => (p.customId && p.customId === profileIdentifier) || p.id === profileIdentifier
         );
-        const profile = currentProfile;
+        let profile = currentProfile;
         if (profile && profile.enabled) {
+            let continuousItems = null;
+            if (profile.syncSettings?.mode === 'continuous') {
+                continuousItems = allMisubs;
+                profile = applyProfileSync(
+                    profile,
+                    {
+                        subscriptions: allMisubs.filter(
+                            (item) => item?.url && /^https?:\/\//.test(item.url)
+                        ),
+                        manualNodes: allMisubs.filter(
+                            (item) => !item?.url || !/^https?:\/\//.test(item.url)
+                        ),
+                    },
+                    profile.syncSettings
+                ).profile;
+                currentProfile = profile;
+            }
             // Check if the profile has an expiration date and if it's expired
             if (profile.expiresAt) {
                 const expiryDate = new Date(profile.expiresAt);
@@ -661,11 +679,11 @@ export async function handleMisubRequest(context) {
                     ...(Array.isArray(profile.manualNodes) ? profile.manualNodes : []),
                 ].filter(Boolean);
                 const relatedSubs =
-                    typeof storageAdapter.getSubscriptionsByIds === 'function'
+                    continuousItems || (typeof storageAdapter.getSubscriptionsByIds === 'function'
                         ? await storageAdapter.getSubscriptionsByIds(
                               Array.from(new Set(relatedIds))
                           )
-                        : allMisubs;
+                        : allMisubs);
                 const misubMap = new Map(relatedSubs.map((item) => [item.id, item]));
 
                 // 1. Add subscriptions in order defined by profile

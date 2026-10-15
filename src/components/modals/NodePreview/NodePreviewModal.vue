@@ -6,6 +6,7 @@
     import { useManualNodes } from '../../../composables/useManualNodes.js';
     import { useI18n } from '../../../i18n/index.js';
     import { isNetworkErrorMessage } from '../../../utils/network-error.js';
+    import { normalizeTuicV5Url } from '../../../utils/tuic-url.js';
     import Modal from '../../forms/Modal.vue';
     import NodeFilters from './components/NodeFilters.vue';
     import NodeList from './components/NodeList.vue';
@@ -353,8 +354,9 @@
 
     // 复制节点链接
     const copyNodeUrl = async (node, nodeId) => {
+        const compatibleUrl = normalizeTuicV5Url(node.url);
         try {
-            await navigator.clipboard.writeText(node.url);
+            await navigator.clipboard.writeText(compatibleUrl);
             copiedNodeId.value = nodeId;
             setTimeout(() => {
                 copiedNodeId.value = '';
@@ -362,7 +364,7 @@
         } catch (err) {
             // 降级方案
             const textArea = document.createElement('textarea');
-            textArea.value = node.url;
+            textArea.value = compatibleUrl;
             document.body.appendChild(textArea);
             textArea.select();
             document.execCommand('copy');

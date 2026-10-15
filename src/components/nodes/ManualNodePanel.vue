@@ -8,6 +8,7 @@
         normalizeManualNodeGroupName,
         DEFAULT_GROUP_KEY,
     } from '@/composables/manual-nodes/groups.js';
+    import { moveSelectedToBoundary } from '@/utils/manual-node-bulk-order.js';
 
     const props = defineProps({
         manualNodes: { type: Array, default: () => [] },
@@ -43,6 +44,9 @@
         'delete-group',
         'update:itemsPerPage', // Added
         'open-batch-group-modal', // Added
+        'batch-delete-nodes',
+        'batch-set-enabled',
+        'ping-selected',
         'ping',
         'ping-all',
         'sort-by-latency',
@@ -63,6 +67,7 @@
         manualNodes: computed(() => props.manualNodes),
         paginatedManualNodes: computed(() => props.paginatedManualNodes || []),
         initialSearchTerm: computed(() => props.searchTerm || ''),
+        activeGroupFilter: computed(() => props.activeGroupFilter),
         onBasePageChange: (page) => emit('changePage', page),
         onSearchTermChange: (value) => emit('update:searchTerm', value),
     });
@@ -86,6 +91,10 @@
     });
 
     const selectedCount = computed(() => selectedNodeIds.value.size);
+    const isAllFilteredSelected = computed(() => {
+        if (sortableManualNodes.value.length === 0) return false;
+        return sortableManualNodes.value.every((node) => selectedNodeIds.value.has(node.id));
+    });
 
     const toggleSelectAll = () => {
         if (isAllSelected.value) {
@@ -96,6 +105,20 @@
             paginatedNodes.value.forEach((node) => selectedNodeIds.value.add(node.id));
         }
     };
+
+    const toggleSelectAllFiltered = () => {
+        if (isAllFilteredSelected.value) {
+            sortableManualNodes.value.forEach((node) => selectedNodeIds.value.delete(node.id));
+        } else {
+            sortableManualNodes.value.forEach((node) => selectedNodeIds.value.add(node.id));
+        }
+    };
+
+    const invertCurrentPage = () => {
+        paginatedNodes.value.forEach((node) => toggleNodeSelection(node.id));
+    };
+
+    const clearSelection = () => selectedNodeIds.value.clear();
 
     const handleBatchGroup = () => {
         emit('open-batch-group-modal', Array.from(selectedNodeIds.value));
@@ -115,6 +138,18 @@
         isSelectionMode.value = false;
     };
 
+    const handleBatchSetEnabled = (enabled) => {
+        emit('batch-set-enabled', Array.from(selectedNodeIds.value), enabled);
+    };
+
+    const handlePingSelected = () => {
+        emit('ping-selected', Array.from(selectedNodeIds.value));
+    };
+
+    const handleBatchReorder = (position) => {
+        emit('reorder', moveSelectedToBoundary(props.manualNodes, selectedNodeIds.value, position));
+    };
+
     const sortableManualNodes = computed(() => {
         const activeGroup = props.activeGroupFilter;
         let nodes = filteredNodes.value;
@@ -131,7 +166,11 @@
     });
 
     const draggableManualNodes = computed({
-        get: () => (props.isSorting ? [...sortableManualNodes.value] : [...props.manualNodes]),
+        get: () => {
+            if (props.isSorting) return [...sortableManualNodes.value];
+            if (isSelectionMode.value) return [...paginatedNodes.value];
+            return [...props.manualNodes];
+        },
         set: (val) => emit('reorder', val),
     });
 
@@ -157,12 +196,12 @@
     const handleSortEnd = () => {
         emit('markDirty');
         // 手动排序完成后重置到第一页
-        if (!props.searchTerm) {
+        if (props.isSorting && !props.searchTerm) {
             emit('changePage', 1);
         }
     };
-    const handleAutoSort = () => {
-        emit('autoSort');
+    const handleAutoSort = (mode) => {
+        emit('autoSort', mode);
     };
     const handleDeduplicate = () => {
         emit('deduplicate');
@@ -204,10 +243,18 @@
         <BulkOperations
             :is-selection-mode="isSelectionMode"
             :is-all-selected="isAllSelected"
+            :is-all-filtered-selected="isAllFilteredSelected"
             :selected-count="selectedCount"
+            :filtered-count="sortableManualNodes.length"
             :groups="groups"
             @toggle-select-all="toggleSelectAll"
+            @toggle-select-all-filtered="toggleSelectAllFiltered"
+            @invert-current-page="invertCurrentPage"
+            @clear-selection="clearSelection"
             @batch-group="handleBatchGroup"
+            @batch-set-enabled="handleBatchSetEnabled"
+            @ping-selected="handlePingSelected"
+            @batch-reorder="handleBatchReorder"
             @batch-delete="handleBatchDelete"
             @exit="
                 () => {

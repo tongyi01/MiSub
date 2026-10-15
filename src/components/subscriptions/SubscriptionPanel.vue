@@ -51,6 +51,7 @@
         'deleteAll',
         'refreshAll',
         'reorder',
+        'autoSort',
         'import',
         'qrcode',
         'updateSearch',
@@ -416,6 +417,21 @@
                                 class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                                 {{ isSorting ? t('actions.finishSort') : t('actions.manualSort') }}
+                            </button>
+                            <div class="px-4 pb-1 pt-2 text-xs font-medium text-gray-400 dark:text-gray-500">
+                                {{ t('actions.autoSort') }}
+                            </div>
+                            <button
+                                @click="emit('autoSort', 'name'); close()"
+                                class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                                {{ t('actions.sortByName') }}
+                            </button>
+                            <button
+                                @click="emit('autoSort', 'enabled-first'); close()"
+                                class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                                {{ t('actions.sortEnabledFirst') }}
                             </button>
                             <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
                             <button
