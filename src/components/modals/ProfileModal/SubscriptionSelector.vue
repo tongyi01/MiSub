@@ -11,7 +11,7 @@ const props = defineProps({
   selectedIds: { type: Array, default: () => [] }
 });
 const emit = defineEmits(['update:searchTerm', 'update:selectedIds']);
-const validSubscriptions = computed(() => props.subscriptions.filter(item => item?.url && /^https?:\/\//.test(item.url)));
+const validSubscriptions = computed(() => props.subscriptions);
 </script>
 
 <template>
@@ -23,6 +23,7 @@ const validSubscriptions = computed(() => props.subscriptions.filter(item => ite
     :search-placeholder="t('subscriptions.searchPlaceholder')"
     :item-fallback="t('subscriptions.unnamed')"
     :source-title="t('profileModal.availableSubscriptions')"
+    :show-selected-in-source="true"
     test-id="subscription-transfer"
     @update:search-term="emit('update:searchTerm', $event)"
     @update:selected-ids="emit('update:selectedIds', $event)"

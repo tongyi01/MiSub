@@ -2,7 +2,10 @@
 import { computed, ref } from 'vue';
 import TransferList from './TransferList.vue';
 import { useI18n } from '@/i18n/index.js';
-import { normalizeManualNodeGroupName } from '../../../composables/manual-nodes/groups.js';
+import {
+  DEFAULT_GROUP_KEY,
+  normalizeManualNodeGroupName
+} from '../../../composables/manual-nodes/groups.js';
 
 const { t } = useI18n();
 const props = defineProps({
@@ -81,7 +84,7 @@ function sortSelectedByGroupOrder() {
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
         <button type="button" class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition" :class="!activeGroupFilter ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300' : 'border-gray-200 bg-white text-gray-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-300'" @click="emit('update:groupFilter', null)">{{ t('manualNodes.allGroups') }}</button>
-        <button type="button" class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition" :class="activeGroupFilter === t('manualNodes.defaultGroup') ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300' : 'border-gray-200 bg-white text-gray-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-300'" @click="emit('update:groupFilter', t('manualNodes.defaultGroup'))">{{ t('manualNodes.ungrouped') }}</button>
+        <button type="button" class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition" :class="activeGroupFilter === DEFAULT_GROUP_KEY ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300' : 'border-gray-200 bg-white text-gray-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-300'" @click="emit('update:groupFilter', DEFAULT_GROUP_KEY)">{{ t('manualNodes.ungrouped') }}</button>
         <button v-for="group in groups" :key="group" type="button" class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition" :class="activeGroupFilter === group ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300' : 'border-gray-200 bg-white text-gray-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-300'" @click="emit('update:groupFilter', group)">{{ group }}</button>
         </div>
         <div class="inline-flex shrink-0 rounded-lg border border-gray-200 bg-white p-1 dark:border-white/10 dark:bg-white/[0.04]">

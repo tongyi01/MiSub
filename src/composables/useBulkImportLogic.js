@@ -9,7 +9,7 @@ import { parseSurgeConfig } from '../utils/protocolConverter.js';
 import { t } from '../i18n/index.js';
 import { normalizeTuicV5Url } from '../utils/tuic-url.js';
 
-const BULK_IMPORT_NODE_PROTOCOLS = COMMON_NODE_PROTOCOLS.filter(protocol => protocol !== 'http' && protocol !== 'https');
+const BULK_IMPORT_NODE_PROTOCOLS = COMMON_NODE_PROTOCOLS;
 const BULK_IMPORT_NODE_REGEX = createProtocolRegex(BULK_IMPORT_NODE_PROTOCOLS, false);
 
 export function useBulkImportLogic({ addSubscriptionsFromBulk, addNodesFromBulk }) {
@@ -21,22 +21,25 @@ export function useBulkImportLogic({ addSubscriptionsFromBulk, addNodesFromBulk 
         if (!importText) return;
 
         const normalizedGroup = normalizeManualNodeGroupName(group);
-        
+
         // 获取已存在的所有 URL，用于去重
         const existingUrls = new Set(
-            (dataStore.subscriptions || []).map(s => normalizeTuicV5Url(s.url)).filter(Boolean)
+            (dataStore.subscriptions || []).map((s) => normalizeTuicV5Url(s.url)).filter(Boolean)
         );
-        
+
         // 先尝试解析 Surge 格式（name = protocol, server, port, ...）
         const surgeNodes = parseSurgeConfig(importText);
-        
-        const lines = importText.split('\n').map(line => line.trim()).filter(Boolean);
+
+        const lines = importText
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
         const validSubs = [];
         const validNodes = [];
 
         // 如果成功解析出 Surge 节点，使用解析结果
         if (surgeNodes && surgeNodes.length > 0) {
-            surgeNodes.forEach(node => {
+            surgeNodes.forEach((node) => {
                 const compatibleUrl = normalizeTuicV5Url(node.url);
                 // 去重检查：跳过已存在的 URL
                 if (!existingUrls.has(compatibleUrl)) {
@@ -50,14 +53,14 @@ export function useBulkImportLogic({ addSubscriptionsFromBulk, addNodesFromBulk 
                         colorTag: null,
                         exclude: '',
                         customUserAgent: '',
-                        notes: ''
+                        notes: '',
                     });
                 }
             });
         }
 
         // 处理标准 URL 格式（逐行检查）
-        lines.forEach(line => {
+        lines.forEach((line) => {
             const compatibleLine = normalizeTuicV5Url(line);
             const baseItem = {
                 name: extractNodeName(compatibleLine) || t('bulkImport.unnamed'),
@@ -69,17 +72,17 @@ export function useBulkImportLogic({ addSubscriptionsFromBulk, addNodesFromBulk 
                 // Default fields for subscriptions
                 exclude: '',
                 customUserAgent: '',
-                notes: ''
+                notes: '',
             };
 
-            if (/^https?:\/\//.test(compatibleLine)) {
+            if (/^https?:\/\//.test(compatibleLine) && !BULK_IMPORT_NODE_REGEX.test(compatibleLine)) {
                 // 去重检查：订阅 URL
                 if (!existingUrls.has(compatibleLine)) {
                     validSubs.push({ ...baseItem, id: generateSubscriptionId() });
                 }
             } else if (BULK_IMPORT_NODE_REGEX.test(compatibleLine)) {
                 // 避免重复添加已从 Surge 格式解析的节点
-                const alreadyParsed = validNodes.some(n => n.url === compatibleLine);
+                const alreadyParsed = validNodes.some((n) => n.url === compatibleLine);
                 // 去重检查：节点 URL
                 if (!alreadyParsed && !existingUrls.has(compatibleLine)) {
                     validNodes.push({ ...baseItem, id: generateNodeId() });
@@ -95,7 +98,7 @@ export function useBulkImportLogic({ addSubscriptionsFromBulk, addNodesFromBulk 
         }
 
         if (validNodes.length > 0) {
-            addNodesFromBulk(validNodes);
+            addNodesFromBulk(validNodes, normalizedGroup);
             message += t('bulkImport.importedNodes', { count: validNodes.length });
         }
 
@@ -109,6 +112,6 @@ export function useBulkImportLogic({ addSubscriptionsFromBulk, addNodesFromBulk 
 
     return {
         showModal,
-        handleBulkImport
+        handleBulkImport,
     };
 }

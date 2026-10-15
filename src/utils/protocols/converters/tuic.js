@@ -12,13 +12,11 @@ export function convertTuicToUrl(proxy) {
         let uuid = proxy.uuid || '';
         let password = proxy.password || proxy.token || '';
 
-        // Recover legacy Clash nodes whose v5 password was embedded in uuid.
-        // Explicit passwords take precedence; do not reinterpret opaque v4 IDs.
         if (!password && typeof uuid === 'string') {
-            const combined = uuid.match(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([\s\S]+)$/i);
-            if (combined) {
-                [, uuid, password] = combined;
-            }
+            const combined = uuid.match(
+                /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([\s\S]+)$/i
+            );
+            if (combined) [, uuid, password] = combined;
         }
 
         if (!uuid) {
