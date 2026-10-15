@@ -10,6 +10,7 @@ import NodeFilters from './components/NodeFilters.vue';
 import NodeList from './components/NodeList.vue';
 import NodeCard from './components/NodeCard.vue';
 import NodePagination from './components/NodePagination.vue';
+import { normalizeTuicV5Url } from '../../../utils/tuic-url.js';
 
 const isDev = import.meta.env.DEV;
 const { t } = useI18n();
@@ -324,8 +325,9 @@ const loadNodes = async () => {
 
 // 复制节点链接
 const copyNodeUrl = async (node, nodeId) => {
+  const compatibleUrl = normalizeTuicV5Url(node.url);
   try {
-    await navigator.clipboard.writeText(node.url);
+    await navigator.clipboard.writeText(compatibleUrl);
     copiedNodeId.value = nodeId;
     setTimeout(() => {
       copiedNodeId.value = '';
@@ -333,7 +335,7 @@ const copyNodeUrl = async (node, nodeId) => {
   } catch (err) {
     // 降级方案
     const textArea = document.createElement('textarea');
-    textArea.value = node.url;
+    textArea.value = compatibleUrl;
     document.body.appendChild(textArea);
     textArea.select();
     document.execCommand('copy');
