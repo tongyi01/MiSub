@@ -1,3 +1,5 @@
+import { normalizeTuicV5Url } from '../../src/utils/tuic-url.js';
+
 function base64Encode(str) {
     return btoa(unescape(encodeURIComponent(str)));
 }
@@ -406,7 +408,7 @@ export function convertClashProxyToUrl(proxy) {
             if (proxy['dialer-proxy'])
                 params.push(`dp=${encodeURIComponent(proxy['dialer-proxy'])}`);
             const query = params.length > 0 ? `?${params.join('&')}` : '';
-            return `tuic://${auth}@${uriServer}:${port}${query}#${encodeURIComponent(name)}`;
+            return normalizeTuicV5Url(`tuic://${auth}@${server}:${port}${query}#${encodeURIComponent(name)}`);
         }
 
         if (type === 'wireguard') {

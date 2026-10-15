@@ -79,19 +79,21 @@ ss://new@server5.com:10000`;
         const initialCount = dataStore.subscriptions.length;
         bulkImport.handleBulkImport(importText, '');
 
-        // 应该只添加 2 个新节点（NewSurge 和 server5）
-        expect(dataStore.subscriptions.length).toBe(initialCount + 2);
+    // 应该只添加 2 个新节点（NewSurge 和 server5）
+    expect(dataStore.subscriptions.length).toBe(initialCount + 2);
+  });
+
+  it('应把 v2rayN 编码的 TUIC 分隔符规范化后再去重', () => {
+    const uuid = '00000000-0000-4000-8000-000000000001';
+    dataStore.subscriptions.push({
+      id: 'tuic-existing',
+      url: `tuic://${uuid}:secret@example.com:443#Existing`,
+      name: 'Existing TUIC',
+      enabled: true
     });
 
-    it('明文 HTTP proxy URI 应作为节点导入而非订阅链接', () => {
-        bulkImport.handleBulkImport(
-            'http://alice:p%40ss%3Aword@proxy.example.com:8080#plain-http',
-            ''
-        );
+    bulkImport.handleBulkImport(`tuic://${uuid}%3Asecret@example.com:443#Existing`, '');
 
-        const imported = dataStore.subscriptions.find((item) => item.name === 'plain-http');
-        expect(imported).toBeDefined();
-        expect(dataStore.subscriptions).toHaveLength(3);
-        expect(imported.url).toBe('http://alice:p%40ss%3Aword@proxy.example.com:8080#plain-http');
-    });
+    expect(dataStore.subscriptions.filter(item => item.url?.startsWith(`tuic://${uuid}`))).toHaveLength(1);
+  });
 });

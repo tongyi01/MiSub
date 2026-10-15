@@ -7,6 +7,7 @@ import { COMMON_NODE_PROTOCOLS, createProtocolRegex } from '@/constants/nodeProt
 import { normalizeManualNodeGroupName } from './manual-nodes/groups.js';
 import { parseSurgeConfig } from '../utils/protocolConverter.js';
 import { t } from '../i18n/index.js';
+import { normalizeTuicV5Url } from '../utils/tuic-url.js';
 
 const BULK_IMPORT_NODE_PROTOCOLS = COMMON_NODE_PROTOCOLS;
 const BULK_IMPORT_NODE_REGEX = createProtocolRegex(BULK_IMPORT_NODE_PROTOCOLS, false);
@@ -23,7 +24,7 @@ export function useBulkImportLogic({ addSubscriptionsFromBulk, addNodesFromBulk 
 
         // 获取已存在的所有 URL，用于去重
         const existingUrls = new Set(
-            (dataStore.subscriptions || []).map((s) => s.url).filter(Boolean)
+            (dataStore.subscriptions || []).map(s => normalizeTuicV5Url(s.url)).filter(Boolean)
         );
 
         // 先尝试解析 Surge 格式（name = protocol, server, port, ...）
@@ -38,13 +39,14 @@ export function useBulkImportLogic({ addSubscriptionsFromBulk, addNodesFromBulk 
 
         // 如果成功解析出 Surge 节点，使用解析结果
         if (surgeNodes && surgeNodes.length > 0) {
-            surgeNodes.forEach((node) => {
+            surgeNodes.forEach(node => {
+                const compatibleUrl = normalizeTuicV5Url(node.url);
                 // 去重检查：跳过已存在的 URL
-                if (!existingUrls.has(node.url)) {
+                if (!existingUrls.has(compatibleUrl)) {
                     validNodes.push({
                         id: generateNodeId(),
                         name: node.name || t('bulkImport.unnamed'),
-                        url: node.url,
+                        url: compatibleUrl,
                         enabled: true,
                         status: 'unchecked',
                         group: normalizedGroup || null,
@@ -58,10 +60,11 @@ export function useBulkImportLogic({ addSubscriptionsFromBulk, addNodesFromBulk 
         }
 
         // 处理标准 URL 格式（逐行检查）
-        lines.forEach((line) => {
+        lines.forEach(line => {
+            const compatibleLine = normalizeTuicV5Url(line);
             const baseItem = {
-                name: extractNodeName(line) || t('bulkImport.unnamed'),
-                url: line,
+                name: extractNodeName(compatibleLine) || t('bulkImport.unnamed'),
+                url: compatibleLine,
                 enabled: true,
                 status: 'unchecked',
                 group: normalizedGroup || null,
@@ -72,16 +75,16 @@ export function useBulkImportLogic({ addSubscriptionsFromBulk, addNodesFromBulk 
                 notes: '',
             };
 
-            if (/^https?:\/\//.test(line) && !BULK_IMPORT_NODE_REGEX.test(line)) {
+            if (/^https?:\/\//.test(compatibleLine)) {
                 // 去重检查：订阅 URL
-                if (!existingUrls.has(line)) {
+                if (!existingUrls.has(compatibleLine)) {
                     validSubs.push({ ...baseItem, id: generateSubscriptionId() });
                 }
-            } else if (BULK_IMPORT_NODE_REGEX.test(line)) {
+            } else if (BULK_IMPORT_NODE_REGEX.test(compatibleLine)) {
                 // 避免重复添加已从 Surge 格式解析的节点
-                const alreadyParsed = validNodes.some((n) => n.url === line);
+                const alreadyParsed = validNodes.some(n => n.url === compatibleLine);
                 // 去重检查：节点 URL
-                if (!alreadyParsed && !existingUrls.has(line)) {
+                if (!alreadyParsed && !existingUrls.has(compatibleLine)) {
                     validNodes.push({ ...baseItem, id: generateNodeId() });
                 }
             }

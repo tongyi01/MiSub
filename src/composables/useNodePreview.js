@@ -6,7 +6,7 @@
 import { ref, computed, watch } from 'vue';
 import { api, APIError } from '@/lib/http.js';
 import { t } from '@/i18n/index.js';
-import { isNetworkErrorMessage } from '@/utils/network-error.js';
+import { normalizeTuicV5Url } from '@/utils/tuic-url.js';
 
 const isDev = import.meta.env.DEV;
 
@@ -36,11 +36,29 @@ export function useNodePreview(props) {
     const regionFilter = ref('all');
     const searchQuery = ref('');
 
-    // 统计信息
-    const protocolStats = ref({});
-    const regionStats = ref({});
-    const availableProtocols = ref([]);
-    const availableRegions = ref([]);
+  // 复制节点链接
+  const copyNodeUrl = async (node, nodeId) => {
+    const compatibleUrl = normalizeTuicV5Url(node.url);
+    try {
+      await navigator.clipboard.writeText(compatibleUrl);
+      copiedNodeId.value = nodeId;
+      setTimeout(() => {
+        copiedNodeId.value = '';
+      }, 2000);
+    } catch (err) {
+      // 降级方案
+      const textArea = document.createElement('textarea');
+      textArea.value = compatibleUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      copiedNodeId.value = nodeId;
+      setTimeout(() => {
+        copiedNodeId.value = '';
+      }, 2000);
+    }
+  };
 
     // 复制状态
     const copiedNodeId = ref('');
